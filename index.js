@@ -1792,10 +1792,11 @@ Part tags: sections are cut at comment lines made of box-drawing characters arou
         // ════════ BROWSER BARS: tab bar, address bar, bookmark bar ════════
     (function initBrowserBars() {
       const tabBar = $('tabBar');
-      const navUrl = $('navUrl');
+            const navUrl = $('navUrl');
       const navPane = $('navPane');
       const navReload = $('navReload');
       const navStar = $('navStar');
+      const navDownloads = $('navDownloads');
       const bmBar = $('bmBar');
       if (!tabBar || !navUrl || !bmBar || !navPane || !navReload || !navStar) return;
 
@@ -3757,15 +3758,20 @@ Part tags: sections are cut at comment lines made of box-drawing characters arou
                 curView().contentWindow.postMessage({ splitViewNav: dir }, '*');
               } catch (e) {}
             }
-            var navBackBtn = $('navBack');
-            var navFwdBtn = $('navFwd');
-            if (navBackBtn) navBackBtn.addEventListener('click', function () { paneGo('back'); });
-            if (navFwdBtn) navFwdBtn.addEventListener('click', function () { paneGo('forward'); });
-            navReload.addEventListener('click', function () {
-        const u = paneUrl();
-        if (u) curView().src = u;
-      });
-      navPane.addEventListener('click', function () {
+                                    var navBackBtn = $('navBack');
+                        var navFwdBtn = $('navFwd');
+                        if (navBackBtn) navBackBtn.addEventListener('click', function () { paneGo('back'); });
+                        if (navFwdBtn) navFwdBtn.addEventListener('click', function () { paneGo('forward'); });
+                        var paneDlBtn = $('paneDlBtn');
+                        if (paneDlBtn) paneDlBtn.addEventListener('click', function () { setPaneUrl('chrome://downloads/'); });
+                        navReload.addEventListener('click', function () {
+              const u = paneUrl();
+              if (u) curView().src = u;
+            });
+            if (navDownloads) navDownloads.addEventListener('click', function () {
+              chrome.tabs.create({ url: 'chrome://downloads/' });
+            });
+            navPane.addEventListener('click', function () {
         const vis = visibleKeys();
         setFocus(vis[(vis.indexOf(target) + 1) % vis.length]);
       });
