@@ -2583,7 +2583,10 @@
     #devBottomBar #dev-btn-log, #devBottomBar #dev-control-bar #dev-btn-log { display: none !important; }
   #frame .bb-tab:hover { background: var(--ap-hover) !important; }
   #frame .bb-tab.active, #frame .bb-tab.active:hover { background: var(--ap-bar) !important; }
-  #frame .bb-tab.active::before, #frame .bb-tab.active::after { display: none !important; }
+    #frame .bb-tab.active::before, #frame .bb-tab.active::after { display: none !important; }
+  /* bottom bar: the text input gets its border back */
+  #devBottomBar #dev-control-bar #dev-instruction { box-sizing: border-box !important; height: 32px !important; margin: 0 8px !important; padding: 0 10px !important; border: 2px solid #ffffff !important; border-radius: 6px !important; }
+  #devBottomBar #dev-control-bar #dev-instruction:focus { border-color: #8ab4f8 !important; }
   </style><script src="theme.js"></script>
           </head>
     <body>

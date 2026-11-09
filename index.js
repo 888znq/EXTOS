@@ -7762,6 +7762,110 @@ Part tags: sections are cut at comment lines made of box-drawing characters arou
     devMap.open = true;
     if (devMap.btn) devMap.btn.classList.add('dv-on');
   }
+    // ════════ DEV PUSH TO GITHUB (⬆) ════════
+  // One tap: compares the workspace with the repo and pushes only the changed text files as ONE commit.
+  const DEV_GH = { owner: '888znq', repo: 'EXTOS', branch: 'main' };
+  const DEV_GH_TEXT = /\.(js|html|json|css)$/i;
+  let devPushBusy = false;
+  async function devGhToken(force) {
+    let tok = '';
+    if (!force) {
+      try { tok = localStorage.getItem('split-view:gh-token') || ''; } catch (e) {}
+      if (!tok) {
+        try {
+          const base = (window.SPLIT_FIREBASE_CONFIG && window.SPLIT_FIREBASE_CONFIG.databaseURL) || '';
+          if (base) {
+            const r = await fetch(base.replace(/\/$/, '') + '/aicompiler/gh_config.json', { cache: 'no-store' });
+            const c = r.ok ? await r.json() : null;
+            if (c && typeof c === 'object') tok = String(c.token || c.pat || c.ghToken || c.gh_token || c.github_token || '').trim();
+            else if (typeof c === 'string') tok = c.trim();
+          }
+        } catch (e) {}
+      }
+    }
+    if (!tok) tok = String(window.prompt('GitHub token for ' + DEV_GH.owner + '/' + DEV_GH.repo + ' (needs contents: write):') || '').trim();
+    if (tok) { try { localStorage.setItem('split-view:gh-token', tok); localStorage.removeItem('split-view:gh-reprompt'); } catch (e) {} }
+    return tok;
+  }
+  async function devGh(token, method, path, body) {
+    const headers = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+    if (body) headers['Content-Type'] = 'application/json';
+    const res = await fetch('https://api.github.com/repos/' + DEV_GH.owner + '/' + DEV_GH.repo + path, {
+      method: method, cache: 'no-store', headers: headers, body: body ? JSON.stringify(body) : undefined
+    });
+    let data = null;
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok) {
+      const err = new Error(method + ' ' + path.split('?')[0] + ' -> ' + res.status + ' ' + ((data && data.message) || res.statusText));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+  async function devGitBlobSha(text) {
+    const enc = new TextEncoder();
+    const body = enc.encode(text);
+    const head = enc.encode('blob ' + body.length + '\0');
+    const all = new Uint8Array(head.length + body.length);
+    all.set(head, 0);
+    all.set(body, head.length);
+    const dig = await crypto.subtle.digest('SHA-1', all);
+    return Array.from(new Uint8Array(dig)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+  async function devPushToGitHub(ev) {
+    if (devPushBusy) return;
+    const btn = $('dev-btn-push');
+    if (!Object.keys(devWorkspace).length) { devToast('⚠ Link the project folder first: nothing to push', 4000); return; }
+    devPushBusy = true;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+    try {
+      let reprompt = false;
+      try { reprompt = localStorage.getItem('split-view:gh-reprompt') === '1'; } catch (e) {}
+      const token = await devGhToken(!!(ev && ev.shiftKey) || reprompt);
+      if (!token) { devToast('⬆ Push cancelled: no GitHub token', 3500); return; }
+      devToast('⬆ Comparing with ' + DEV_GH.owner + '/' + DEV_GH.repo + '…', 4000);
+      const ref = await devGh(token, 'GET', '/git/ref/heads/' + DEV_GH.branch);
+      const headSha = ref.object.sha;
+      const headCommit = await devGh(token, 'GET', '/git/commits/' + headSha);
+      const baseTree = headCommit.tree.sha;
+      const tree = await devGh(token, 'GET', '/git/trees/' + baseTree + '?recursive=1');
+      if (tree.truncated) throw new Error('The repo tree is too large to compare in one request');
+      const remote = {};
+      tree.tree.forEach(function (e) { if (e.type === 'blob') remote[e.path] = e; });
+      const entries = [], changed = [];
+      const names = Object.keys(devWorkspace).filter(function (f) { return DEV_GH_TEXT.test(f) && f.indexOf('..') < 0; });
+      for (const f of names) {
+        const text = String(devWorkspace[f]).replace(/\r\n/g, '\n');
+        const r = remote[f];
+        if (r && r.sha === await devGitBlobSha(text)) continue;
+        changed.push(f);
+        entries.push({ path: f, mode: r ? r.mode : '100644', type: 'blob', content: text });
+      }
+      const remoteText = Object.keys(remote).filter(function (p) { return p.indexOf('/') < 0 && DEV_GH_TEXT.test(p); });
+      const removed = remoteText.filter(function (p) { return !(p in devWorkspace); });
+      if (removed.length > Math.max(2, Math.floor(remoteText.length / 3))) {
+        throw new Error('Not pushing: ' + removed.length + ' repo files are missing from the workspace (' + removed.slice(0, 6).join(', ') + '). Re-link the folder and try again.');
+      }
+      removed.forEach(function (p) { entries.push({ path: p, mode: remote[p].mode, type: 'blob', sha: null }); });
+      if (!entries.length) { devToast('⬆ Nothing to push: GitHub already matches', 4000); return; }
+      const newTree = await devGh(token, 'POST', '/git/trees', { base_tree: baseTree, tree: entries });
+      const shown = changed.concat(removed.map(function (p) { return '-' + p; }));
+      const msg = 'EXT OS patch: ' + shown.slice(0, 5).join(', ') + (shown.length > 5 ? ' +' + (shown.length - 5) + ' more' : '');
+      const commit = await devGh(token, 'POST', '/git/commits', { message: msg, tree: newTree.sha, parents: [headSha] });
+      await devGh(token, 'PATCH', '/git/refs/heads/' + DEV_GH.branch, { sha: commit.sha });
+      devLog('PUSH', msg + ' | ' + commit.sha);
+      devToast('⬆ Pushed ' + entries.length + ' file(s) to ' + DEV_GH.branch + ' (' + commit.sha.slice(0, 7) + ')', 5000);
+    } catch (e) {
+      const m = String((e && e.message) || e);
+      if (e && e.status === 401) { try { localStorage.setItem('split-view:gh-reprompt', '1'); } catch (x) {} }
+      try { devLog('ERROR', 'PUSH ERROR: ' + m); } catch (x) {}
+      devToast('⚠ Push failed: see the error box', 5000);
+      devErrPopup('PUSH ERROR', m + (e && e.status === 401 ? '\nToken rejected: press ⬆ again and enter a new one.' : ''));
+    } finally {
+      devPushBusy = false;
+      if (btn) { btn.disabled = false; btn.textContent = '⬆'; }
+    }
+  }
   // ════════ DEV BUTTONS ════════
   (function devInitButtons() {
     const bar = $('dev-control-bar');
@@ -7793,7 +7897,8 @@ Part tags: sections are cut at comment lines made of box-drawing characters arou
     const repBtn = after(mkBtn('dev-btn-replace', '🔁', 'Replace everywhere (js, html, css): type  old => new  in the instruction box'));
     const mapBtn = after(mkBtn('dev-btn-map', '🧩', 'Parts map: tap any @part to add/remove it in the instruction box'));
     const undoBtn = after(mkBtn('dev-btn-undo', '↶', 'Undo'));
-    const redoBtn = after(mkBtn('dev-btn-redo', '↷', 'Redo'));
+        const redoBtn = after(mkBtn('dev-btn-redo', '↷', 'Redo'));
+    const pushBtn = after(mkBtn('dev-btn-push', '⬆', 'Push changed files to GitHub (' + DEV_GH.owner + '/' + DEV_GH.repo + ', ' + DEV_GH.branch + ') in one commit. Shift+click = enter a new token'));
     devMap.btn = mapBtn;
         function paintAuto() {
       pasteBtn.style.display = (devAuto || devNuts) ? 'none' : '';
@@ -7826,7 +7931,8 @@ Part tags: sections are cut at comment lines made of box-drawing characters arou
     repBtn.addEventListener('click', devReplaceAll);
     mapBtn.addEventListener('click', function () { if (devMap.open) devMapClose(); else devMapOpen(); });
     undoBtn.addEventListener('click', function () { devStep(devHist.undo, devHist.redo, 'undo'); });
-    redoBtn.addEventListener('click', function () { devStep(devHist.redo, devHist.undo, 'redo'); });
+        redoBtn.addEventListener('click', function () { devStep(devHist.redo, devHist.undo, 'redo'); });
+    pushBtn.addEventListener('click', devPushToGitHub);
     paintAuto();
     paintNuts();
     devUndoUi();
