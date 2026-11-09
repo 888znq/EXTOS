@@ -11,14 +11,14 @@
     --th-omni: color-mix(in srgb, var(--app-bg) 35%, #000000);
   }
 
-  /* ══════ Browser bars: tab bar + address bar + bookmark bar ══════ */
-  .bb-tabbar {
-    flex: 0 0 38px;
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    padding: 4px 8px 0;
-    min-width: 0;
+      /* ══════ Browser bars: tab bar + address bar + bookmark bar ══════ */
+    .bb-tabbar {
+      flex: 0 0 28px;
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      padding: 0 8px 0;
+      min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
         background: var(--app-bg);
@@ -61,9 +61,9 @@
     border-radius: 50%;
     -webkit-tap-highlight-color: transparent;
   }
-  .bb-tab-x { flex: 0 0 18px; width: 18px; height: 18px; font-size: 13px; opacity: 0.7; }
+    .bb-tab-x { flex: 0 0 18px; width: 18px; height: 18px; font-size: 13px; opacity: 0.7; }
   .bb-tab-x:hover, .bb-tab-new:hover, .bb-btn:hover { background: rgba(255, 255, 255, 0.18); opacity: 1; }
-  .bb-tab-new { flex: 0 0 26px; width: 26px; height: 26px; align-self: center; margin-left: 4px; font-size: 18px; }
+  .bb-tab-new { flex: 0 0 24px; width: 24px; height: 24px; align-self: flex-end; margin: 0 0 2px 4px; font-size: 18px; line-height: 1; }
 
   .bb-navrow {
     flex: 0 0 38px;
@@ -1810,8 +1810,8 @@
 
 /* Tab strip */
 #frame .cr-strip {
-  flex: 0 0 41px;
-  height: 41px;
+  flex: 0 0 28px;
+  height: 28px;
   box-sizing: border-box;
   display: flex;
   align-items: flex-end;
@@ -1822,9 +1822,9 @@
   z-index: 75;
 }
 #frame .cr-tabsearch {
-  flex: 0 0 28px;
-  width: 28px;
-  height: 28px;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
   align-self: center;
   margin: 0 0 0 8px;
   padding: 0;
@@ -1842,11 +1842,11 @@
 #frame .bb-tabbar {
   flex: 1 1 auto;
   min-width: 0;
-  height: 41px;
+  height: 28px;
   box-sizing: border-box;
   align-items: flex-end;
   gap: 0;
-  padding: 7px 0 0 8px;
+  padding: 0 0 0 8px;
   border: 0;
   background: transparent;
   z-index: auto;
@@ -1855,7 +1855,7 @@
   flex: 0 1 240px;
   min-width: 40px;
   max-width: 240px;
-  height: 34px;
+  height: 28px;
   box-sizing: border-box;
   padding: 0 8px 0 12px;
   gap: 8px;
@@ -1915,10 +1915,10 @@
 }
 #frame .bb-tab-x:hover { background: rgba(31, 31, 31, 0.12); opacity: 1; }
 #frame .bb-tab-new {
-  flex: 0 0 28px;
-  width: 28px;
-  height: 28px;
-  margin: 0 0 3px 4px;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  margin: 0 0 2px 4px;
   align-self: flex-end;
   color: var(--cr-icon);
   font-size: 20px;
@@ -2126,7 +2126,7 @@
   width: auto;
   min-width: 0;
   box-sizing: border-box;
-  display: flex;
+  display: none;
   align-items: center;
   gap: 2px;
   margin: 0;
@@ -2225,7 +2225,7 @@
     -webkit-tap-highlight-color: transparent;
   }
   #frame #splitBtn:hover { background: rgba(255, 255, 255, 0.15); }
-  #frame #splitBtn svg { width: 20px; height: 20px; display: block; }
+    #frame #splitBtn svg { width: 20px; height: 20px; display: block; }
 
   /* address-bar suggestions: Chrome dark dropdown */
   .bb-sugg { background: var(--th-frame); color: #e3e3e3; border: 0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); }

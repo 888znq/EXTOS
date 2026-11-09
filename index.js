@@ -1674,10 +1674,14 @@ Part tags: sections are cut at comment lines made of box-drawing characters arou
 
     // ════════ SITE HISTORY: every site you add or visit, saved to Firebase ════════
         const siteHistory = (function () {
-          const LS_HIST = 'split-view:history:v1';
+                    const LS_HIST = 'split-view:history:v1';
           const MAX_ENTRIES = 500;
           const SAVE_MS = 1500;
           const map = {};
+          try {
+            const saved = JSON.parse(localStorage.getItem(LS_HIST));
+            if (saved && typeof saved === 'object') Object.assign(map, saved);
+          } catch (e) {}
           const lastSeen = {};
           let timer = 0;
           let dirty = false;
@@ -1728,22 +1732,31 @@ Part tags: sections are cut at comment lines made of box-drawing characters arou
             keys.slice(MAX_ENTRIES).forEach(function (k) { delete map[k]; });
           }
 
-                    // RULE: visited-site history stays in memory only. It is never saved to
-          // localStorage or Firebase, so every fresh open starts blank.
-          function store() {}
+                              // RULE: visited-site history stays in memory only. It is never saved to
+                    // localStorage or Firebase, so every fresh open starts blank.
+                    function store() {
+                      try { localStorage.setItem(LS_HIST, JSON.stringify(map)); } catch (e) {}
+                    }
 
-          // RULE: nothing is pushed to Firebase from here. Only added groups sync (see saveGroups).
-          function push() {
-            clearTimeout(timer);
-            dirty = false;
-          }
+                    // RULE: nothing is pushed to Firebase from here. Only added groups sync (see saveGroups).
+                    function push() {
+                      clearTimeout(timer);
+                      dirty = false;
+                      if (window.SplitSync) SplitSync.saveHistory(map);
+                    }
 
-          function changed() {
+                    function changed() {
             prune();
             store();
             dirty = true;
             clearTimeout(timer);
             timer = setTimeout(push, SAVE_MS);
+          }
+
+          if (window.SplitSync) {
+            SplitSync.loadHistory().then(function (remote) {
+              if (remote) { merge(remote); store(); }
+            });
           }
 
           // record(url)        -> a real visit (count + 1, last visited = now)
@@ -3608,11 +3621,11 @@ Part tags: sections are cut at comment lines made of box-drawing characters arou
         navStar.title = on ? 'Remove bookmark' : 'Bookmark this page';
         navStar.style.display = '';
 
-        bmBar.textContent = '';
-                // The bookmark bar shows ONLY the 36 fixed folders: 0 1 2 ... 9 A B ... Z
-                bmEnsureAZ();
-                bmBar.style.display = 'flex';
-                                bmBar.style.overflowX = 'hidden';
+                bmBar.textContent = '';
+        // The bookmark bar shows ONLY the 36 fixed folders: 0 1 2 ... 9 A B ... Z
+        bmEnsureAZ();
+        bmBar.style.display = 'none';
+        bmBar.style.overflowX = 'hidden';
                 bmBar.style.scrollbarWidth = 'none';
                 '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function (ch) {
                   const f = bookmarks.find(function (x) { return x && x.folder && x.id === 'az_' + ch; });
