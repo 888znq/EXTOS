@@ -1,0 +1,2692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Split View</title>
+<style>
+  :root {
+    --app-bg: #000432;
+    --th-frame: color-mix(in srgb, var(--app-bg) 55%, #000000);
+    --th-omni: color-mix(in srgb, var(--app-bg) 35%, #000000);
+  }
+
+  /* ══════ Browser bars: tab bar + address bar + bookmark bar ══════ */
+  .bb-tabbar {
+    flex: 0 0 38px;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    padding: 4px 8px 0;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+        background: var(--app-bg);
+    border-top: 1px solid #ffffff;
+    z-index: 5;
+  }
+  .bb-tabbar::-webkit-scrollbar { display: none; }
+  .bb-tab {
+    position: relative;
+    flex: 0 1 180px;
+    min-width: 64px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 6px 0 12px;
+    color: rgba(255, 255, 255, 0.65);
+    font: 12px system-ui, -apple-system, "Segoe UI", sans-serif;
+    white-space: nowrap;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bb-tab:hover { background: rgba(255, 255, 255, 0.08); color: #ffffff; }
+    .bb-tab.active { background: rgba(255, 255, 255, 0.16); color: #ffffff; }
+  .bb-tab-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .bb-tab-x, .bb-tab-new, .bb-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    background: transparent;
+    color: #ffffff;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font: 14px system-ui, -apple-system, "Segoe UI", sans-serif;
+    border-radius: 50%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bb-tab-x { flex: 0 0 18px; width: 18px; height: 18px; font-size: 13px; opacity: 0.7; }
+  .bb-tab-x:hover, .bb-tab-new:hover, .bb-btn:hover { background: rgba(255, 255, 255, 0.18); opacity: 1; }
+  .bb-tab-new { flex: 0 0 26px; width: 26px; height: 26px; align-self: center; margin-left: 4px; font-size: 18px; }
+
+  .bb-navrow {
+    flex: 0 0 38px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 10px;
+    min-width: 0;
+    background: var(--app-bg);
+    z-index: 5;
+  }
+  .bb-half { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 6px; }
+  .bb-btn { flex: 0 0 26px; width: 26px; height: 26px; font-size: 13px; font-weight: 600; }
+  .bb-omni {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 3px 0 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+    .bb-omni:focus-within { background: var(--app-bg); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }
+  .bb-omni input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    background: transparent;
+    border: 0;
+    outline: 0;
+    color: #ffffff;
+    font: 13px system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .bb-omni input::placeholder { color: rgba(255, 255, 255, 0.55); }
+  .bb-marks {
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-left: 10px;
+    border-left: 1px solid rgba(255, 255, 255, 0.25);
+  }
+  .bb-marks::-webkit-scrollbar { display: none; }
+  .bb-mark {
+    flex: 0 0 auto;
+    max-width: 140px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 4px 0 10px;
+    border-radius: 999px;
+    color: #ffffff;
+    font: 12px system-ui, -apple-system, "Segoe UI", sans-serif;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bb-mark:hover { background: rgba(255, 255, 255, 0.15); }
+  .bb-mark-title { overflow: hidden; text-overflow: ellipsis; }
+    .bb-mark-x { width: 16px; height: 16px; font-size: 12px; opacity: 0.6; }
+  .bb-hint { color: rgba(255, 255, 255, 0.45); font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; white-space: nowrap; }
+
+  /* Address-bar suggestions (opens upward, like Chrome at the bottom of the window) */
+  .bb-navrow { position: relative; z-index: 60; }
+  .bb-sugg {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 6px);
+    width: max(100%, 300px);
+    max-width: 94vw;
+    padding: 4px;
+    background: var(--app-bg);
+    border: 1px solid #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.55);
+    z-index: 100;
+    overflow: hidden;
+  }
+  .bb-sg {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    color: #ffffff;
+    font: 13px system-ui, -apple-system, "Segoe UI", sans-serif;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bb-sg:hover, .bb-sg.sel { background: rgba(255, 255, 255, 0.16); }
+  .bb-sg-ico {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .bb-sg-main { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .bb-sg-sub { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: rgba(255, 255, 255, 0.55); font-size: 12px; }
+  .bb-sg-sub::before { content: "\2014\00a0"; }
+  :root {
+      color-scheme: dark;
+      --bg: #0b0f0e;
+      --panel: #0b0f0e;
+      --elev: #16201d;
+      --scrim: rgba(11, 15, 14, 0.6);
+      --toast-bg: rgba(22, 32, 29, 0.95);
+      --line: #e6efec;
+      --line-dim: rgba(230, 239, 236, 0.5);
+      --line-width: 1px;
+      --text: #e8f0ed;
+      --text-dim: rgba(232, 240, 237, 0.4);
+      --accent: #34d399;
+      --accent-soft: rgba(52, 211, 153, 0.35);
+      --accent-bg: rgba(52, 211, 153, 0.16);
+      --accent-bg-strong: rgba(52, 211, 153, 0.25);
+      --on-accent: #06231a;
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+  * { box-sizing: inherit; }
+
+  html {
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+    height: 100%;
+  }
+
+  body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Space Grotesk", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      display: flex;
+      align-items: stretch;
+      justify-content: stretch;
+      padding: 0;
+      overflow: hidden;
+    }
+
+  .app {
+      flex: 1 1 auto;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+  .frame {
+      position: relative;
+      width: 100%;
+      flex: 1 1 auto;
+      min-height: 0;
+      border: var(--line-width) solid var(--line);
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+    }
+
+  .panes-wrapper {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      position: relative;
+  }
+
+  .taskbar {
+      flex: 0 0 38px;
+      display: flex;
+      align-items: center;
+            justify-content: space-between;
+          padding: 0 10px;
+          background: rgba(0, 0, 0, 0.28);
+          border-top: 1px solid rgba(242, 243, 251, 0.14);
+          z-index: 5;
+          gap: 8px;
+      }
+
+      .taskbar-left, .taskbar-right {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+      }
+      .taskbar-left  { flex: 1 1 auto; min-width: 0; }
+      .taskbar-right { flex: 0 0 auto; }
+
+      /* ── AI Compile & Patch Workspace Styles ── */
+      .dev-btn {
+          background: transparent;
+          border: 1px solid var(--line-dim);
+      color: var(--text);
+      padding: 4px 8px;
+      font: bold 11px monospace;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      user-select: none;
+  }
+    .dev-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+            color: var(--on-accent);
+      }
+      #dev-btn-link {
+          background: rgba(255, 255, 255, 0.08);
+      }
+
+      #dev-bar {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          width: 100%;
+          min-width: 0;
+          overflow-x: auto;
+          scrollbar-width: none;
+      }
+      #dev-bar::-webkit-scrollbar { display: none; }
+
+      #dev-control-bar {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex: 1 0 auto;
+          flex-wrap: nowrap;
+      }
+      #dev-control-bar > :not(.dev-input) { flex: 0 0 auto; }
+
+      .dev-input {
+          flex: 1 1 150px;
+          width: auto;
+          min-width: 90px;
+          height: 24px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid var(--line-dim);
+          border-radius: 4px;
+          color: var(--text);
+          font: bold 11px monospace;
+          padding: 0 6px;
+          outline: none;
+      }
+      .dev-input:focus { border-color: var(--accent); }
+
+      .dev-toggles {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--line-dim);
+      border-radius: 4px;
+      padding: 0 8px;
+      height: 24px;
+  }
+  .dev-toggles label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      font: bold 10px monospace;
+      color: var(--text);
+      user-select: none;
+  }
+
+  #dev-toast {
+      position: fixed;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+            padding: 8px 16px;
+      font: bold 12px monospace;
+      background: var(--elev);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: #fff;
+      z-index: 5000;
+      display: none;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+  }
+  #dev-toast.show { display: block; }
+
+  /* Panes are positioned by index.js from the layout tree (left / top / width / height in %) */
+  .pane {
+    position: absolute;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+  .pane[hidden] { display: none; }
+  .pane-body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .pane iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #000;
+    transform-origin: 0 0;
+  }
+
+  .tap-catcher {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    text-align: center;
+        font-size: 12px;
+      color: var(--text-dim);
+      background: var(--scrim);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+  .tap-catcher.on { display: flex; }
+
+  .zoom-controls {
+      position: absolute;
+      bottom: clamp(6px, 1.5vh, 10px);
+      right: clamp(8px, 2vw, 12px);
+      display: flex;
+      gap: clamp(4px, 1vw, 8px);
+      z-index: 4;
+    }
+
+  .zoom-btn {
+      width: clamp(22px, 5vw, 30px);
+      height: clamp(22px, 5vw, 30px);
+      border: none;
+      background: transparent;
+      color: var(--text-dim);
+      font-size: clamp(13px, 2.5vw, 16px);
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      border-radius: 4px;
+            opacity: 0.45;
+          transition: opacity 0.15s ease, color 0.15s ease;
+        }
+
+      .fs-btn svg { width: 1.15em; height: 1.15em; display: block; }
+      .fs-btn .ico-exit { display: none; }
+      .fs-btn { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+      .is-fs .fs-btn .ico-enter { display: none; }
+      .is-fs .fs-btn .ico-exit { display: block; }
+
+      /* Page Tiling button (taskbar) */
+      .orient-btn svg { width: 1.15em; height: 1.15em; display: block; }
+      .orient-btn { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+      .fs-toast {
+        position: fixed;
+        left: 50%;
+    bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    max-width: 90vw;
+    padding: 8px 12px;
+        border-radius: 8px;
+    background: var(--toast-bg);
+    color: var(--text);
+    font-size: 12px;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .fs-toast.show { opacity: 1; }
+
+  .zoom-btn:hover,
+  .zoom-btn:active {
+    opacity: 1;
+    color: var(--accent);
+  }
+
+  .divider {
+    flex: 0 0 auto;
+    height: 21px;
+    margin-top: -10px;
+    margin-bottom: -10px;
+    position: relative;
+    cursor: row-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    touch-action: none;
+  }
+
+  .divider::before {
+      content: "";
+      display: block;
+      width: 100%;
+      height: var(--line-width);
+      background: var(--line);
+      transition: background 0.15s ease, box-shadow 0.15s ease;
+    }
+
+  body.is-dragging { cursor: row-resize; user-select: none; -webkit-user-select: none; }
+  body.is-dragging .pane iframe { pointer-events: none; }
+
+  .divider:hover::before,
+  .divider.active::before {
+    background: var(--accent);
+  }
+
+  /* ── Site manager popup (exact fit to pane) ── */
+  .mgr {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0;
+    background: transparent;
+  }
+  .mgr[hidden] { display: none; }
+  .mgr-card {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+  }
+  .mgr-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-dim);
+    font-size: 14px;
+  }
+  .mgr-x {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 16px;
+    padding: 4px 8px;
+    cursor: pointer;
+  }
+  .mgr [hidden] { display: none !important; }
+  .mgr-head-btns { display: flex; align-items: center; gap: 6px; }
+  .mgr-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+  }
+  .mgr-list { list-style: none; margin: 0; padding: 0; }
+  .mgr-hint { margin: 0; padding: 8px 12px 6px; font-size: 11px; color: rgba(238, 240, 251, 0.55); }
+
+  .mgr-grid {
+    list-style: none;
+    margin: auto 0 0 0;
+    padding: 8px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: 8px;
+  }
+  .mgr-grid li {
+    position: relative;
+    touch-action: none;
+  }
+    .mgr-grid li.is-dragging { z-index: 10; }
+  .mgr-grid li.is-dragging .mgr-tile {
+    transform: scale(1.05);
+    border-color: var(--accent);
+    background: var(--accent-bg-strong);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+  }
+  .mgr-tile {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 4px 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(242, 243, 251, 0.18);
+    border-radius: 10px;
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+    .mgr-tile:hover, .mgr-tile:active { border-color: var(--accent); }
+  .mgr-tile.is-active { border-color: var(--accent); background: var(--accent-bg); }
+  .mgr-av {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 600;
+    color: #fff;
+    flex: 0 0 auto;
+  }
+  .mgr-tname {
+    max-width: 100%;
+    font-size: 12px;
+    line-height: 1.25;
+    text-align: center;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+  }
+
+  .mgr-handle {
+    flex: 0 0 auto;
+    width: 30px;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: rgba(238, 240, 251, 0.6);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+    .mgr-item.is-dragging {
+    position: relative;
+    z-index: 2;
+    background: var(--elev);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  }
+  .mgr-item.is-dragging .mgr-handle { cursor: grabbing; color: var(--accent); }
+  .mgr-item.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+  .mgr-item.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
+  .mgr-item { border-bottom: 1px solid rgba(242, 243, 251, 0.18); }
+  .mgr-row { display: flex; align-items: center; gap: 6px; padding: 2px 8px 2px 4px; }
+  .mgr-open {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 8px;
+    background: none;
+    border: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .mgr-name { font-size: 14px; }
+  .mgr-item.is-active .mgr-name::before { content: "\25CF\00a0"; color: var(--accent); }
+  .mgr-url {
+    max-width: 100%;
+    font-size: 11px;
+    color: rgba(238, 240, 251, 0.55);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mgr-btn {
+    flex: 0 0 auto;
+    background: none;
+    border: 1px solid var(--line-dim);
+    border-radius: 6px;
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .mgr-btn.primary { border-color: var(--accent); color: var(--accent); }
+  .mgr-btn.danger { border-color: #ff9c9c; color: #ffb4b4; }
+  .mgr-btn[disabled] { opacity: 0.3; cursor: default; }
+  .mgr-edit { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+  .mgr-edit-btns { display: flex; gap: 8px; }
+  .mgr-in {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--line-dim);
+    border-radius: 6px;
+    color: var(--text);
+    font: inherit;
+    font-size: 16px;
+    padding: 8px 10px;
+    outline: none;
+  }
+  .mgr-in:focus { border-color: var(--accent); }
+  .mgr-add {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--line-dim);
+  }
+  .mgr-foot {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+        border-top: 1px solid rgba(242, 243, 251, 0.18);
+        font-size: 11px;
+        color: rgba(238, 240, 251, 0.55);
+      }
+      .mgr-msg.err { color: #ffb4b4; }
+
+      /* ══════════════════════════════════════════════════════════════
+         LIGHT · NEOMORPHIC THEME  (overrides everything above)
+         Tweak --bg, --neo-hi, --neo-lo and --accent to re-tint it.
+         ══════════════════════════════════════════════════════════════ */
+      :root {
+                color-scheme: dark;
+        --bg: var(--app-bg);
+        --panel: var(--app-bg);
+        --elev: var(--app-bg);
+        --scrim: rgba(0, 4, 50, 0.85);
+        --toast-bg: var(--app-bg);
+        --line: #ffffff;
+        --line-dim: rgba(255, 255, 255, 0.55);
+        --text: #ffffff;
+        --text-dim: rgba(255, 255, 255, 0.6);
+        --accent: #ffffff;
+        --accent-soft: rgba(255, 255, 255, 0.35);
+        --accent-bg: rgba(255, 255, 255, 0.10);
+        --accent-bg-strong: rgba(255, 255, 255, 0.18);
+        --on-accent: var(--app-bg);
+          --danger: #d64550;
+          --neo-hi: #ffffff;
+          --neo-lo: #a3b1c6;
+          --raise:    0 0 0 1px var(--line);
+          --raise-sm: 0 0 0 1px var(--line);
+          --inset:    0 0 0 1px var(--line);
+          --inset-sm: 0 0 0 1px var(--line);
+        }
+
+                body { background: var(--bg); color: var(--text); }
+        .frame { border: none; background: var(--panel); }
+        .pane iframe { background: var(--bg); }
+
+        /* Divider becomes a thin line */
+        .divider::before {
+          height: 2px;
+          border-radius: 1px;
+          background: var(--bg);
+          box-shadow: none;
+        }
+                    .divider:hover::before,
+              .divider.active::before { background: var(--accent-soft); }
+
+              /* Taskbar: navy bg, everything inside white */
+            .taskbar {
+              background: var(--app-bg);
+              border-top: 1px solid #ffffff;
+              box-shadow: none;
+            }
+                  .taskbar .dev-btn,
+            .taskbar #dev-btn-link {
+              background: transparent;
+              color: #ffffff;
+              border: 1px solid #ffffff;
+              border-radius: 999px;
+              box-shadow: none;
+            }
+            .taskbar .dev-btn:hover,
+            .taskbar #dev-btn-link:hover {
+              background: rgba(255, 255, 255, 0.15);
+              color: #ffffff;
+              border-color: #ffffff;
+            }
+            .taskbar .dev-btn:active,
+            .taskbar #dev-btn-link:active { box-shadow: none; }
+            .taskbar .dev-input {
+              background: transparent;
+              color: #ffffff;
+              border: 1px solid #ffffff;
+              border-radius: 999px;
+              padding: 0 10px;
+              box-shadow: none;
+            }
+            .taskbar .dev-input::placeholder { color: rgba(255, 255, 255, 0.7); }
+            .taskbar .dev-input:focus { box-shadow: none; border-color: #ffffff; }
+            .taskbar .dev-toggles {
+              background: transparent;
+              border: 1px solid #ffffff;
+              border-radius: 999px;
+              box-shadow: none;
+            }
+            .taskbar .dev-toggles label { color: #ffffff; }
+            .taskbar .dev-toggles input { accent-color: #ffffff; }
+            .taskbar .zoom-btn,
+            .taskbar .zoom-btn:hover,
+            .taskbar .zoom-btn:active {
+              background: transparent;
+              color: #ffffff;
+              opacity: 1;
+              box-shadow: none;
+            }
+
+            /* Dev toolbar controls */
+      .dev-btn,
+      #dev-btn-link {
+        background: var(--bg);
+        color: var(--text);
+        border: none;
+        border-radius: 8px;
+        padding: 5px 10px;
+        box-shadow: var(--raise-sm);
+      }
+      .dev-btn:hover,
+      #dev-btn-link:hover {
+        background: var(--bg);
+        color: var(--accent);
+        border-color: transparent;
+      }
+      .dev-btn:active,
+      #dev-btn-link:active { box-shadow: var(--inset-sm); }
+
+      .dev-input {
+        background: var(--bg);
+        color: var(--text);
+        border: none;
+        border-radius: 8px;
+        box-shadow: var(--inset-sm);
+      }
+      .dev-input::placeholder { color: var(--text-dim); }
+      .dev-input:focus { box-shadow: var(--inset-sm), 0 0 0 1.5px var(--accent); }
+
+      .dev-toggles {
+        background: var(--bg);
+        border: none;
+        border-radius: 8px;
+        box-shadow: var(--inset-sm);
+      }
+      .dev-toggles label { color: var(--text); }
+      .dev-toggles input { accent-color: var(--accent); }
+
+      /* Toasts */
+      #dev-toast {
+        background: var(--bg);
+        color: var(--text);
+        border: none;
+        border-radius: 10px;
+        box-shadow: var(--raise);
+      }
+            .fs-toast {
+        background: var(--bg);
+        color: var(--text);
+        box-shadow: var(--raise);
+      }
+
+      /* Zoom / fullscreen buttons: nearly invisible */
+      .zoom-btn {
+        background: transparent;
+        color: var(--text-dim);
+        border-radius: 4px;
+        opacity: 0.45;
+        box-shadow: none;
+      }
+      .zoom-btn:hover { opacity: 1; color: var(--accent); }
+      .zoom-btn:active {
+        opacity: 1;
+        color: var(--accent);
+        box-shadow: none;
+      }
+
+      /* ══════════════════════════════════════════════════════════════
+         Apps popup — navy var(--app-bg) + white (same look as the taskbar)
+         ══════════════════════════════════════════════════════════════ */
+      .mgr {
+        color-scheme: dark;
+        animation: mgrIn 0.14s ease-out;
+      }
+      @keyframes mgrIn { from { opacity: 0; } to { opacity: 1; } }
+
+      .mgr-card { background: var(--app-bg); color: #ffffff; }
+      .mgr-head {
+        border-bottom: 1px solid #ffffff;
+        color: #ffffff;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+      }
+      .mgr-x {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        color: #ffffff;
+        background: transparent;
+        border: 1px solid #ffffff;
+        border-radius: 999px;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .mgr-x:hover, .mgr-x:active { background: rgba(255, 255, 255, 0.15); }
+
+      .mgr-body {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
+      }
+      .mgr-hint { color: rgba(255, 255, 255, 0.7); }
+
+      /* App tiles */
+      .mgr-grid { padding: 12px; gap: 12px; }
+      .mgr-tile {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        border-radius: 14px;
+        color: #ffffff;
+        box-shadow: none;
+      }
+      .mgr-tile:hover { background: rgba(255, 255, 255, 0.12); border-color: #ffffff; color: #ffffff; }
+      .mgr-tile:active { background: rgba(255, 255, 255, 0.2); box-shadow: none; }
+      .mgr-tile.is-active {
+        background: #ffffff;
+        border-color: #ffffff;
+        color: var(--app-bg);
+        box-shadow: none;
+      }
+      .mgr-grid li.is-dragging .mgr-tile {
+        background: #0a0f5c;
+        border-color: #ffffff;
+        color: #ffffff;
+        transform: scale(1.06);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
+      }
+      .mgr-av { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85); }
+
+      /* Edit list */
+      .mgr-item { border-bottom: 1px solid rgba(255, 255, 255, 0.2); }
+      .mgr-item.is-dragging { background: #0a0f5c; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55); }
+      .mgr-item.drop-before { box-shadow: inset 0 2px 0 #ffffff; }
+      .mgr-item.drop-after { box-shadow: inset 0 -2px 0 #ffffff; }
+      .mgr-item.is-active .mgr-name::before { color: #ffffff; }
+      .mgr-handle { color: rgba(255, 255, 255, 0.7); }
+      .mgr-item.is-dragging .mgr-handle { color: #ffffff; }
+      .mgr-open { color: #ffffff; }
+      .mgr-url { color: rgba(255, 255, 255, 0.65); }
+
+      /* Buttons — pills, same as the taskbar */
+      .mgr-btn {
+        background: transparent;
+        color: #ffffff;
+        border: 1px solid #ffffff;
+        border-radius: 999px;
+        padding: 6px 14px;
+        box-shadow: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .mgr-btn:hover { background: rgba(255, 255, 255, 0.15); }
+      .mgr-btn:active { background: rgba(255, 255, 255, 0.25); box-shadow: none; }
+      .mgr-btn.primary { background: #ffffff; color: var(--app-bg); border-color: #ffffff; font-weight: 600; }
+      .mgr-btn.primary:hover { background: rgba(255, 255, 255, 0.88); }
+      .mgr-btn.danger { color: #ff9c9c; border-color: #ff9c9c; }
+      .mgr-btn.danger:hover { background: rgba(255, 156, 156, 0.14); }
+      .mgr-btn[disabled] { opacity: 0.35; box-shadow: none; background: transparent; }
+
+      /* Inputs */
+      .mgr-in {
+        background: transparent;
+        color: #ffffff;
+        border: 1px solid #ffffff;
+        border-radius: 999px;
+        padding: 9px 14px;
+        box-shadow: none;
+      }
+      .mgr-in::placeholder { color: rgba(255, 255, 255, 0.6); }
+      .mgr-in:focus { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4); }
+
+      .mgr-add { border-top: 1px solid rgba(255, 255, 255, 0.25); }
+      .mgr-foot { border-top: 1px solid rgba(255, 255, 255, 0.25); color: rgba(255, 255, 255, 0.7); }
+      .mgr-msg.err { color: #ff9c9c; }
+
+      .mgr button:focus-visible,
+      .mgr .mgr-handle:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+
+      /* ══════════════════════════════════════════════════════════════
+         SQUARE GRID — square app tiles on a plain grid background.
+         --hw (square size) and the grid cells are set by layoutHive() in index.js.
+         ══════════════════════════════════════════════════════════════ */
+      .mgr-body.hive {
+        --hw: 84px;
+        scrollbar-gutter: stable;
+        background-color: var(--app-bg);
+      }
+
+      /* The grid: every app sits in one square cell; the faint lines show the empty slots */
+      .mgr-grid {
+        --hcols: 3;
+        display: grid;
+        grid-template-columns: repeat(var(--hcols), var(--hw, 84px));
+        grid-auto-rows: var(--hw, 84px);
+        width: calc(var(--hw, 84px) * var(--hcols));
+        max-width: 100%;
+        margin: auto auto 12px;
+        padding: 0;
+        gap: 0;
+        background-image:
+          linear-gradient(to right, rgba(255, 255, 255, 0.16) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.16) 1px, transparent 1px);
+        background-size: var(--hw, 84px) var(--hw, 84px);
+        outline: 1px solid rgba(255, 255, 255, 0.16);
+        outline-offset: -1px;
+      }
+
+      /* Square outline (the li) + square face (the button inside it) */
+      .mgr-grid li {
+        margin: 3px;
+        padding: 1px;
+        background: rgba(255, 255, 255, 0.65);
+        border-radius: 10px;
+      }
+      .mgr-grid li.is-dragging { background: #ffffff; }
+
+      .mgr-tile {
+        justify-content: center;
+        gap: 3px;
+        padding: 0;
+        border: none;
+        border-radius: 9px;
+        background: var(--app-bg);
+        color: #ffffff;
+      }
+      .mgr-tile:hover { background: #10156e; border-color: transparent; color: #ffffff; }
+      .mgr-tile:active { background: #1a2090; box-shadow: none; }
+      .mgr-tile.is-active,
+      .mgr-tile.is-active:hover { background: #ffffff; color: var(--app-bg); }
+      .mgr-grid li.is-dragging .mgr-tile {
+        background: #0a0f5c;
+        color: #ffffff;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .mgr-av {
+        width: clamp(24px, calc(var(--hw, 84px) * 0.38), 40px);
+        height: clamp(24px, calc(var(--hw, 84px) * 0.38), 40px);
+        font-size: clamp(12px, calc(var(--hw, 84px) * 0.18), 18px);
+      }
+            .mgr-tname {
+          max-width: 82%;
+          font-size: clamp(9px, calc(var(--hw, 84px) * 0.115), 11.5px);
+          line-height: 1.15;
+          word-break: normal;
+          overflow-wrap: anywhere;
+        }
+
+        /* Compact tiles: no circle, just text OR an icon */
+        .mgr-code {
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          line-height: 1;
+          white-space: nowrap;
+          pointer-events: none;
+          font-size: clamp(9px, calc(var(--hw, 84px) * 0.27), 22px);
+        }
+        .mgr-ico {
+          display: none;
+          width: calc(var(--hw, 84px) * 0.56);
+          height: calc(var(--hw, 84px) * 0.56);
+          object-fit: contain;
+          border-radius: 22%;
+          pointer-events: none;
+          -webkit-user-drag: none;
+          user-select: none;
+        }
+        .mgr-ico.sm {
+          width: calc(var(--hw, 84px) * 0.34);
+          height: calc(var(--hw, 84px) * 0.34);
+        }
+        .mgr-tile.has-ico .mgr-ico { display: block; }
+        .mgr-tile.has-ico .mgr-code { display: none; }
+
+        /* Columns / Rows bar */
+        .mgr-gridbar {
+          flex: 0 0 auto;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: center;
+          gap: 6px 16px;
+          padding: 6px 12px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.8);
+        }
+        .mgr-step { display: inline-flex; align-items: center; gap: 6px; }
+        .mgr-step-btn,
+        .mgr-step-val {
+          padding: 0;
+          border: 1px solid #ffffff;
+          background: transparent;
+          color: #ffffff;
+          font: inherit;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .mgr-step-btn {
+          width: 26px;
+          height: 26px;
+          border-radius: 999px;
+          font-size: 15px;
+          line-height: 1;
+        }
+        .mgr-step-val {
+          min-width: 44px;
+          height: 26px;
+          border-radius: 999px;
+          font-weight: 600;
+        }
+              .mgr-step-btn:active,
+          .mgr-step-val:active { background: rgba(255, 255, 255, 0.25); }
+
+          /* Drop target shown while dragging a tile */
+          .mgr-grid { position: relative; }
+          .mgr-ghost {
+            position: absolute;
+            z-index: 1;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+          }
+
+          /* Always-visible quick-add bar: name, address, Add */
+          .mgr-add {
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+          }
+          .mgr-add .mgr-in { min-width: 0; padding: 7px 12px; font-size: 14px; }
+          .mgr-add #mgrName { flex: 0 0 28%; }
+          .mgr-add #mgrUrl { flex: 1 1 auto; }
+          .mgr-add .mgr-btn { flex: 0 0 auto; padding: 7px 14px; }
+
+          /* Settings button now lives at the bottom of the popup */
+                    .mgr-foot { align-items: center; }
+              .mgr-foot-info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+              .mgr-foot .mgr-btn { flex: 0 0 auto; padding: 7px 16px; }
+
+              /* EDGE-TO-EDGE GRID: no header, no footer, cells fill the whole popup */
+              .mgr-card { position: relative; }
+              .mgr-body.hive {
+                --hh: 84px;
+                --hm: 84px;
+                overflow-x: hidden;
+                overflow-y: hidden;
+                scrollbar-gutter: auto;
+              }
+              .mgr-body.hive.scroll { overflow-y: auto; }
+              .mgr .mgr-grid {
+                margin: 0;
+                flex: 0 0 auto;
+                max-width: none;
+                width: calc(var(--hw, 84px) * var(--hcols));
+                grid-auto-rows: var(--hh, 84px);
+                background-size: var(--hw, 84px) var(--hh, 84px);
+                cursor: pointer;
+              }
+              .mgr-grid li { margin: 2px; }
+              .mgr-code { font-size: clamp(9px, calc(var(--hm, 84px) * 0.27), 22px); }
+              .mgr-ico {
+                width: calc(var(--hm, 84px) * 0.56);
+                height: calc(var(--hm, 84px) * 0.56);
+              }
+              .mgr-ico.sm {
+                width: calc(var(--hm, 84px) * 0.34);
+                height: calc(var(--hm, 84px) * 0.34);
+              }
+              .mgr-tname { font-size: clamp(9px, calc(var(--hm, 84px) * 0.115), 11.5px); }
+
+              /* Floating add card (opens when an empty box is tapped) */
+              .mgr .mgr-add {
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                width: min(92%, 420px);
+                z-index: 30;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+                padding: 14px;
+                background: var(--app-bg);
+                border: 1px solid #ffffff;
+                border-radius: 16px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+              }
+              .mgr .mgr-add #mgrName,
+              .mgr .mgr-add #mgrUrl { flex: 0 0 auto; width: 100%; }
+              .mgr .mgr-add-btns { display: flex; gap: 8px; justify-content: flex-end; }
+              .mgr .mgr-add-btns .mgr-btn { padding: 7px 18px; }
+
+              /* Floating settings button (bottom right) + its panel */
+              .mgr .mgr-fab {
+                position: absolute;
+                right: 6px;
+                bottom: 6px;
+                width: 34px;
+                height: 34px;
+                padding: 0;
+                z-index: 40;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                line-height: 1;
+                color: #ffffff;
+                background: var(--app-bg);
+                border: 1px solid #ffffff;
+                border-radius: 50%;
+                cursor: pointer;
+                opacity: 0.85;
+                -webkit-tap-highlight-color: transparent;
+              }
+              .mgr .mgr-fab:hover,
+              .mgr .mgr-fab:active { opacity: 1; background: #10156e; }
+                            /* Settings overlay (opens with the gear): Cols control on the bottom edge, Rows control on the right edge */
+              .mgr .mgr-panel {
+                position: absolute;
+                inset: 0;
+                z-index: 40;
+                pointer-events: none;
+              }
+              .mgr .mgr-panel > * { pointer-events: auto; }
+              .mgr .mgr-panel .mgr-gridbar { display: contents; }
+              .mgr .mgr-panel .mgr-step {
+                position: absolute;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px;
+                background: var(--app-bg);
+                border: 1px solid #ffffff;
+                border-radius: 999px;
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+              }
+              .mgr .mgr-panel .mgr-step-cols { left: 50%; bottom: 6px; transform: translateX(-50%); flex-direction: row; }
+              .mgr .mgr-panel .mgr-step-rows { right: 6px; top: 50%; transform: translateY(-50%); flex-direction: row; }
+
+              /* Delete "x" on every app: only visible while the settings panel (gear) is open */
+              .mgr .mgr-del {
+                position: absolute;
+                top: 3px;
+                right: 3px;
+                width: 20px;
+                height: 20px;
+                padding: 0;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                line-height: 1;
+                color: #ffffff;
+                background: #d64550;
+                border: 1px solid #ffffff;
+                border-radius: 50%;
+                cursor: pointer;
+                z-index: 3;
+                -webkit-tap-highlight-color: transparent;
+              }
+              .mgr .mgr-card:has(.mgr-panel:not([hidden])) .mgr-del { display: flex; }
+              .mgr .mgr-panel .mgr-btn:not(.primary) { background: var(--app-bg); }
+              .mgr .mgr-panel #mgrMode { position: absolute; left: 6px; bottom: 6px; }
+              .mgr .mgr-panel .mgr-foot-info {
+                position: absolute;
+                left: 6px;
+                bottom: 46px;
+                padding: 3px 10px;
+                background: var(--app-bg);
+                border: 1px solid rgba(255, 255, 255, 0.4);
+                border-radius: 999px;
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.85);
+              }
+              .mgr .mgr-list { padding-bottom: 56px; }
+              #mgrMsg {
+                position: absolute;
+                left: 8px;
+                top: 8px;
+                z-index: 40;
+                padding: 6px 12px;
+                border-radius: 999px;
+                background: #ffffff;
+                color: var(--app-bg);
+                font-size: 12px;
+                font-weight: 600;
+                pointer-events: none;
+              }
+                            #mgrMsg:empty { display: none; }
+                #mgrMsg.err { background: #ff9c9c; color: var(--app-bg); }
+
+                /* Tiles show the full site name; sites without an icon get a color of their own */
+                .mgr-tile { padding: 0 4px; }
+                .mgr-code {
+                  white-space: normal;
+                  text-align: center;
+                  max-width: 100%;
+                  letter-spacing: 0;
+                  line-height: 1.1;
+                  overflow-wrap: anywhere;
+                  word-break: normal;
+                  font-size: clamp(9px, calc(var(--hm, 84px) * 0.19), 15px);
+                }
+                .mgr-tile.no-ico { background: hsl(var(--hue, 220) 60% 30%); }
+                .mgr-tile.no-ico:hover { background: hsl(var(--hue, 220) 60% 38%); }
+                .mgr-tile.no-ico:active { background: hsl(var(--hue, 220) 60% 44%); }
+                .mgr-tile.no-ico .mgr-code { color: #ffffff; }
+                              .mgr-tile.no-ico.is-active,
+                  .mgr-tile.no-ico.is-active:hover { background: #ffffff; }
+                  .mgr-tile.no-ico.is-active .mgr-code { color: hsl(var(--hue, 220) 70% 28%); }
+
+                  /* Folder button: red = not connected, green = connected */
+                  .taskbar #dev-btn-link.link-off,
+                  .taskbar #dev-btn-link.link-off:hover {
+                    color: #ff6b6b;
+                    border-color: #ff6b6b;
+                    background: rgba(255, 107, 107, 0.12);
+                  }
+                                .taskbar #dev-btn-link.link-on,
+                    .taskbar #dev-btn-link.link-on:hover {
+                      color: #4ade80;
+                      border-color: #4ade80;
+                      background: rgba(74, 222, 128, 0.12);
+                    }
+
+                                  /* Zoom buttons: bottom centre of each pane, just the + and - (no pill) */
+                      .zoom-controls {
+                        left: 50%;
+                        right: auto;
+                        transform: translateX(-50%);
+                        gap: 10px;
+                        padding: 0;
+                        background: transparent;
+                        border: none;
+                        border-radius: 0;
+                        box-shadow: none;
+                        opacity: 1;
+                      }
+                                    .zoom-controls .zoom-btn {
+                          width: clamp(28px, 6vw, 34px);
+                          height: clamp(28px, 6vw, 34px);
+                          font-size: clamp(18px, 3.2vw, 22px);
+                          font-weight: 500;
+                          color: #ffffff;
+                          background: transparent;
+                          opacity: 0.4;
+                          border-radius: 0;
+                          text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 0 5px rgba(0, 0, 0, 0.6);
+                          transition: opacity 0.15s ease;
+                        }
+                                      .zoom-controls .zoom-btn:hover,
+                          .zoom-controls .zoom-btn:active {
+                            color: #ffffff;
+                            background: transparent;
+                            opacity: 0.95;
+                          }
+
+                          /* Taskbar: no pill outlines, only the instruction input keeps its outline */
+                          .taskbar .dev-btn,
+                          .taskbar #dev-btn-link,
+                          .taskbar .dev-toggles {
+                            border: none;
+                            box-shadow: none;
+                          }
+                          .taskbar .dev-btn:hover,
+                          .taskbar #dev-btn-link:hover,
+                          .taskbar #dev-btn-link.link-on,
+                          .taskbar #dev-btn-link.link-on:hover,
+                          .taskbar #dev-btn-link.link-off,
+                          .taskbar #dev-btn-link.link-off:hover {
+                            background: transparent;
+                            border: none;
+                          }
+                                        .taskbar .dev-btn:active,
+                            .taskbar #dev-btn-link:active { opacity: 0.6; }
+
+                            /* Taskbar: every control the same size (28px boxes, 16px icons) */
+                            .taskbar { --tb-size: 28px; --tb-icon: 16px; }
+                            #dev-control-bar { gap: 8px; }
+                            .taskbar .taskbar-right { gap: 8px; }
+
+                            .taskbar .dev-btn,
+                            .taskbar #dev-btn-link,
+                            .taskbar .taskbar-right .zoom-btn {
+                              width: var(--tb-size);
+                              height: var(--tb-size);
+                              min-width: 0;
+                              padding: 0;
+                              display: inline-flex;
+                              align-items: center;
+                              justify-content: center;
+                              font-size: var(--tb-icon);
+                              line-height: 1;
+                            }
+                            .taskbar .dev-btn svg,
+                            .taskbar .taskbar-right .zoom-btn svg {
+                              width: var(--tb-icon);
+                              height: var(--tb-icon);
+                              flex: 0 0 auto;
+                            }
+
+                            .taskbar .dev-input { height: var(--tb-size); }
+                            .taskbar .dev-toggles {
+                              height: var(--tb-size);
+                              padding: 0 8px;
+                              gap: 10px;
+                              align-items: center;
+                            }
+                            .taskbar .dev-toggles label { display: flex; align-items: center; }
+                                          .taskbar .dev-toggles input {
+                                width: var(--tb-icon);
+                                height: var(--tb-icon);
+                                margin: 0;
+                              }
+
+                                            /* ▲ and ⌘ are text characters: size each one separately so they look equal to the icons */
+                              .taskbar #dev-btn-payload { font-size: 15px; }
+                              .taskbar #dev-btn-paste { font-size: 13px; }
+                                            .taskbar #dev-btn-payload,
+                                .taskbar #dev-btn-paste {
+                                  font-weight: 400;
+                                  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+                                  line-height: 1;
+                                }
+
+                                /* Three checkboxes: navy box (same as the bar), white tick */
+                                .taskbar .dev-toggles input[type="checkbox"] {
+                                  -webkit-appearance: none;
+                                  appearance: none;
+                                  position: relative;
+                                  background: var(--app-bg);
+                                  border: 1.5px solid #ffffff;
+                                  border-radius: 4px;
+                                  cursor: pointer;
+                                  flex: 0 0 auto;
+                                }
+                                .taskbar .dev-toggles input[type="checkbox"]:checked::after {
+                                  content: "";
+                                  position: absolute;
+                                  left: 4px;
+                                                                    top: 1px;
+                                      width: 4px;
+                                      height: 8px;
+                                      border: solid #ffffff;
+                                      border-width: 0 2px 2px 0;
+                                      transform: rotate(45deg);
+                                    }
+
+                                    /* Grid lines hidden; only shown while an app is being dragged */
+                                    .mgr .mgr-grid { background-image: none; outline: none; }
+                                    .mgr-body.hive.arranging .mgr-grid {
+                                      background-image:
+                                        linear-gradient(to right, rgba(255, 255, 255, 0.16) 1px, transparent 1px),
+                                        linear-gradient(to bottom, rgba(255, 255, 255, 0.16) 1px, transparent 1px);
+                                      outline: 1px solid rgba(255, 255, 255, 0.16);
+                                      outline-offset: -1px;
+                                    }
+
+                                    /* Text tiles: same size and shape as a fetched app icon */
+                                    .mgr-tile.no-ico { background: var(--app-bg); }
+                                    .mgr-tile.no-ico:hover { background: #10156e; }
+                                    .mgr-tile.no-ico:active { background: #1a2090; }
+                                    .mgr-tile.no-ico .mgr-code {
+                                      display: flex;
+                                      align-items: center;
+                                      justify-content: center;
+                                      box-sizing: border-box;
+                                      width: calc(var(--hm, 84px) * 0.56);
+                                      height: calc(var(--hm, 84px) * 0.56);
+                                                                        max-width: none;
+                                          padding: 2px;
+                                          border-radius: 22%;
+                                          background: hsl(var(--hue, 220) 60% 30%);
+                                          color: #ffffff;
+                                          font-size: clamp(7px, calc(var(--hm, 84px) * 0.12), 11px);
+                                          overflow: hidden;
+                                        }
+                                        .mgr-tile.no-ico.is-active .mgr-code { color: #ffffff; }
+
+                                        /* No frame around tiles, icons larger so they sit closer together */
+                                        .mgr-grid li,
+                                        .mgr-grid li.is-dragging {
+                                          margin: 1px;
+                                          padding: 0;
+                                          background: none;
+                                          border-radius: 0;
+                                        }
+                                        .mgr-ico {
+                                          width: calc(var(--hm, 84px) * 0.72);
+                                          height: calc(var(--hm, 84px) * 0.72);
+                                        }
+                                        .mgr-ico.sm {
+                                          width: calc(var(--hm, 84px) * 0.44);
+                                          height: calc(var(--hm, 84px) * 0.44);
+                                        }
+                                                                        .mgr-tile.no-ico .mgr-code {
+                                            width: calc(var(--hm, 84px) * 0.72);
+                                            height: calc(var(--hm, 84px) * 0.72);
+                                            font-size: clamp(8px, calc(var(--hm, 84px) * 0.16), 15px);
+                                          }
+
+                                                                          /* Show the grid while the settings panel (gear) is open */
+                                            .mgr .mgr-card:has(.mgr-panel:not([hidden])) .mgr-grid {
+                                              background-image:
+                                                linear-gradient(to right, rgba(255, 255, 255, 0.16) 1px, transparent 1px),
+                                                linear-gradient(to bottom, rgba(255, 255, 255, 0.16) 1px, transparent 1px);
+                                              outline: 1px solid rgba(255, 255, 255, 0.16);
+                                              outline-offset: -1px;
+                                            }
+
+                                            /* Always-on faint grid (brighter rules above still win while dragging / settings open) */
+                                            .mgr .mgr-grid {
+                                              background-image:
+                                                linear-gradient(to right, rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+                                                linear-gradient(to bottom, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+                                              outline: 1px solid rgba(255, 255, 255, 0.07);
+                                              outline-offset: -1px;
+                                            }
+
+                                          /* ══════════════════════════════════════════════════════════════
+                                             PAGE TILING — pane title strips, dividers, drop hint, layout menu
+                                             ══════════════════════════════════════════════════════════════ */
+                                          .panes-wrapper { position: relative; background: var(--panel); }
+
+                                          /* Title strip on every pane (hidden while only one pane is open) */
+                                          .pane-bar {
+                                            flex: 0 0 24px;
+                                            display: flex;
+                                            align-items: center;
+                                            gap: 2px;
+                                            padding: 0 7px;
+                                            background: var(--app-bg);
+                                            color: #ffffff;
+                                            border-top: 1px solid rgba(255, 255, 255, 0.35);
+                                            font: 11px system-ui, -apple-system, "Segoe UI", sans-serif;
+                                            user-select: none;
+                                            -webkit-user-select: none;
+                                          }
+                                          .pane.focus .pane-bar { background: #10156e; }
+                                          .panes-wrapper.solo .pane-bar { display: none; }
+                                          .panes-wrapper:not(.solo) .pane-body { border-left: 1px solid rgba(120, 135, 160, 0.55); }
+                                          .pane-grip {
+                                            flex: 0 0 22px;
+                                            height: 100%;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            opacity: 0.8;
+                                            cursor: grab;
+                                            touch-action: none;
+                                          }
+                                          .pane-title {
+                                            flex: 1 1 auto;
+                                            min-width: 0;
+                                            height: 100%;
+                                            line-height: 24px;
+                                            padding: 0 4px;
+                                            overflow: hidden;
+                                            text-overflow: ellipsis;
+                                            white-space: nowrap;
+                                            cursor: pointer;
+                                            touch-action: none;
+                                          }
+                                          .pane-btn {
+                                            flex: 0 0 22px;
+                                            width: 22px;
+                                            height: 22px;
+                                            padding: 0;
+                                            display: inline-flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            border: 0;
+                                            border-radius: 50%;
+                                            background: transparent;
+                                            color: #ffffff;
+                                            font: 16px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+                                            opacity: 0.8;
+                                            cursor: pointer;
+                                            -webkit-tap-highlight-color: transparent;
+                                          }
+                                          .pane-btn:hover { background: rgba(255, 255, 255, 0.18); opacity: 1; }
+                                          .pane-btn[disabled] { opacity: 0.25; cursor: default; background: transparent; }
+                                          .pane.lifting { opacity: 0.6; }
+
+                                          /* Dividers are created by index.js between neighbouring panes */
+                                          .panes-wrapper > .divider {
+                                            position: absolute;
+                                            margin: 0;
+                                            flex: none;
+                                            z-index: 6;
+                                          }
+                                          .panes-wrapper > .divider:not(.vert) { height: 13px; transform: translateY(-50%); cursor: row-resize; }
+                                          .panes-wrapper > .divider.vert { width: 13px; transform: translateX(-50%); cursor: col-resize; }
+                                          .divider.vert::before { width: 2px; height: 100%; }
+                                          body.is-dragging-col { cursor: col-resize; }
+                                          body.is-moving { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+                                          body.is-moving .pane iframe { pointer-events: none; }
+
+                                          /* Where a dragged pane will land */
+                                          .drop-hint {
+                                            position: absolute;
+                                            z-index: 30;
+                                            pointer-events: none;
+                                            box-sizing: border-box;
+                                            background: var(--accent-bg-strong);
+                                            border: 2px solid var(--accent);
+                                            border-radius: 6px;
+                                          }
+
+                                          /* Page Tiling menu (opens above the taskbar) */
+                                          .tile-menu {
+                                            position: fixed;
+                                            right: 8px;
+                                            bottom: calc(46px + env(safe-area-inset-bottom, 0px));
+                                            min-width: 220px;
+                                            max-width: 94vw;
+                                            padding: 6px;
+                                            background: var(--app-bg);
+                                            color: #ffffff;
+                                            border: 1px solid #ffffff;
+                                            border-radius: 12px;
+                                            box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.55);
+                                            z-index: 200;
+                                            font: 13px system-ui, -apple-system, "Segoe UI", sans-serif;
+                                          }
+                                          .tile-head { padding: 6px 10px 8px; font-size: 11px; color: rgba(255, 255, 255, 0.65); }
+                                          .tile-sep { height: 1px; margin: 4px 6px; background: rgba(255, 255, 255, 0.25); }
+                                          .tile-item {
+                                            width: 100%;
+                                            height: 34px;
+                                            display: flex;
+                                            align-items: center;
+                                            gap: 10px;
+                                            padding: 0 10px;
+                                            border: 0;
+                                            border-radius: 8px;
+                                            background: transparent;
+                                            color: #ffffff;
+                                            font: inherit;
+                                            text-align: left;
+                                            cursor: pointer;
+                                            -webkit-tap-highlight-color: transparent;
+                                          }
+                                          .tile-item:hover { background: rgba(255, 255, 255, 0.16); }
+                                          .tile-item.on { background: rgba(255, 255, 255, 0.22); }
+                                                                                    .tile-item[disabled] { opacity: 0.35; cursor: default; background: transparent; }
+
+                                          /* ══ ONE COLOR SCHEME: background var(--app-bg), everything else white ══ */
+                                          html, body, .frame, .panes-wrapper { background: var(--app-bg); }
+                                          body { color: #ffffff; }
+                                          .pane iframe { background: var(--app-bg); }
+                                          .panes-wrapper:not(.solo) .pane-body { border-left: 1px solid rgba(255, 255, 255, 0.5); }
+                                          .pane.focus .pane-bar { background: var(--app-bg); box-shadow: inset 0 2px 0 #ffffff; }
+                                          .divider::before { background: rgba(255, 255, 255, 0.5); }
+                                          .divider:hover::before,
+                                          .divider.active::before { background: #ffffff; }
+
+                                          /* Apps popup: no bluish / colored fills */
+                                          .mgr-tile:hover { background: rgba(255, 255, 255, 0.12); }
+                                          .mgr-tile:active { background: rgba(255, 255, 255, 0.2); }
+                                          .mgr-tile.no-ico:hover { background: rgba(255, 255, 255, 0.12); }
+                                          .mgr-tile.no-ico:active { background: rgba(255, 255, 255, 0.2); }
+                                          .mgr-grid li.is-dragging .mgr-tile { background: rgba(255, 255, 255, 0.18); }
+                                          .mgr-item.is-dragging { background: rgba(255, 255, 255, 0.12); }
+                                          .mgr .mgr-fab:hover,
+                                          .mgr .mgr-fab:active { background: var(--app-bg); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); opacity: 1; }
+                                          .mgr-tile.no-ico .mgr-code { background: var(--app-bg); border: 1px solid #ffffff; color: #ffffff; }
+
+                                                                                    /* Active tab + address bar: solid var(--app-bg) with a white border, never dimmed */
+                                                                                    .bb-tab.active,
+                                                                                    .bb-tab.active:hover {
+                                                                                      background: var(--app-bg) !important;
+                                                                                      border: 1px solid #ffffff !important;
+                                                                                      color: #ffffff !important;
+                                                                                      opacity: 1 !important;
+                                                                                    }
+                                                                                    .bb-omni,
+                                                                                    .bb-omni:hover,
+                                                                                    .bb-omni:focus-within {
+                                                                                      background: var(--app-bg) !important;
+                                                                                      border: 1px solid #ffffff !important;
+                                                                                      box-shadow: none !important;
+                                                                                      opacity: 1 !important;
+                                                                                    }
+                                                                                    .bb-omni input { color: #ffffff; }
+
+                                                                                                                              /* Every tab: white border. The focused (active) tab also gets a soft cyan glow inside it. */
+                                                                                                                              .bb-tab,
+                                                                                                                              .bb-tab:hover {
+                                                                                                                                border: 1px solid #ffffff !important;
+                                                                                                                              }
+                                                                                                                              .bb-tab.active,
+                                                                                                                              .bb-tab.active:hover {
+                                                                                                                                box-shadow:
+                                                                                                                                  inset 0 0 0 1px rgba(34, 211, 238, 0.65),
+                                                                                                                                  inset 0 0 10px rgba(34, 211, 238, 0.45) !important;
+                                                                                                                              }
+                                          /* Patch bar: URL bar + nav buttons take the left 50%, before the Project Folder button */
+                                          .taskbar-left { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+                                          .taskbar-left > .bb-navrow {
+                                            flex: 0 0 50%; max-width: 50%; min-width: 0; box-sizing: border-box;
+                                            display: flex !important; align-items: center;
+                                            height: auto; margin: 0; padding: 0; border: 0; background: transparent;
+                                          }
+                                          .taskbar-left > .bb-navrow .bb-half {
+                                            display: flex; align-items: center; gap: 4px;
+                                            flex: 1 1 100%; width: 100%; min-width: 0;
+                                          }
+                                          .taskbar-left > .bb-navrow .bb-omni { flex: 1 1 auto; min-width: 0; }
+                                          .taskbar-left > .bb-navrow input { min-width: 0; }
+                                          .taskbar-left > #dev-bar { flex: 1 1 0; min-width: 0; }
+                                          #dev-control-bar { min-width: 0; }
+
+                                          /* Suggestions open upward as a floating box (the bar is now at the bottom) */
+                                          .bb-sugg {
+                                            position: fixed !important; right: auto !important;
+                                            z-index: 2147483000 !important; overflow: auto;
+                                          }
+
+                                          /* Temp popup that shows the full text while typing in the URL / prompt box */
+                                          .type-peek {
+                                            position: fixed; top: auto; z-index: 2147483001; box-sizing: border-box;
+                                            padding: 6px 10px; background: var(--app-bg); color: #ffffff;
+                                            border: 1px solid #ffffff; border-radius: 8px;
+                                            font: 13px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+                                            white-space: pre-wrap; word-break: break-word;
+                                            max-height: 35vh; overflow: auto; pointer-events: none;
+                                            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+                                          }
+                                          .type-peek[hidden] { display: none; }
+                                          .tile-ico { flex: 0 0 16px; display: inline-flex; }
+                                          .tile-lbl { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                                          .tile-tick { flex: 0 0 14px; text-align: right; }
+
+                                          /* Bottom bar: one merged pill, thin separators between controls */
+                                          .taskbar {
+                                            --tb-sep: rgba(255, 255, 255, 0.45);
+                                            background: var(--app-bg);
+                                            border: 1px solid #ffffff;
+                                            border-radius: 999px;
+                                            margin: 4px 6px;
+                                            padding: 0;
+                                            overflow: hidden;
+                                            box-shadow: none;
+                                          }
+                                          .taskbar .taskbar-left,
+                                          .taskbar .taskbar-right,
+                                          .taskbar #dev-control-bar,
+                                          .taskbar .bb-navrow .bb-half { gap: 0; }
+
+                                          .taskbar .bb-half > .bb-btn {
+                                            border: 0;
+                                            border-radius: 0;
+                                            background: transparent;
+                                            box-shadow: none;
+                                          }
+                                          .taskbar .bb-omni,
+                                          .taskbar .bb-omni:hover,
+                                          .taskbar .bb-omni:focus-within {
+                                            border: 0 !important;
+                                            border-radius: 0 !important;
+                                            box-shadow: inset 1px 0 0 var(--tb-sep) !important;
+                                          }
+                                          .taskbar #dev-instruction {
+                                            border: 0;
+                                            border-radius: 0;
+                                            background: transparent;
+                                          }
+                                          .taskbar #navFwd,
+                                          .taskbar #navReload,
+                                          .taskbar #dev-btn-link,
+                                          .taskbar #dev-instruction,
+                                          .taskbar .dev-toggles,
+                                          .taskbar #dev-btn-payload,
+                                          .taskbar #dev-btn-paste,
+                                          .taskbar #dev-btn-log,
+                                          .taskbar .taskbar-right #orientBtn,
+                                          .taskbar .taskbar-right .fs-btn {
+                                            border-radius: 0;
+                                            box-shadow: inset 1px 0 0 var(--tb-sep);
+                                          }
+                                                                                    .bb-tab.sel { background: rgba(255, 255, 255, 0.28); box-shadow: inset 0 0 0 1px #ffffff; }
+                                                                                    .bb-group { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; height: 22px; padding: 0 4px 0 8px; margin: 0 2px; border: 1px solid #ffffff; border-radius: 11px; background: rgba(255, 255, 255, 0.12); color: #ffffff; font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; white-space: nowrap; cursor: pointer; }
+                                                                                    .bb-group:hover { background: rgba(255, 255, 255, 0.24); }
+                                                                                    .bb-selbtn { flex: 0 0 auto; height: 22px; padding: 0 10px; margin: 0 2px; border: 1px solid #ffffff; border-radius: 11px; background: #ffffff; color: var(--app-bg); font: 600 11px system-ui, -apple-system, "Segoe UI", sans-serif; white-space: nowrap; cursor: pointer; }
+                                          
+/* ══════════════════════════════════════════════════════════════
+   CHROME 1:1 (fresh install look): tab strip, toolbar, bookmarks bar on TOP.
+   Everything else (folder, AI box, checkboxes, ▲ ⌘ log, tiling, fullscreen)
+   is hidden behind the one puzzle button on the right of the toolbar.
+   ══════════════════════════════════════════════════════════════ */
+#frame {
+  --cr-frame: var(--th-frame);
+  --cr-bar: var(--app-bg);
+  --cr-omni: var(--th-omni);
+  --cr-text: #e3e3e3;
+  --cr-icon: #e3e3e3;
+  border: 0;
+}
+
+/* Tab strip */
+#frame .cr-strip {
+  flex: 0 0 41px;
+  height: 41px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+  padding: 0;
+  background: var(--cr-frame);
+  position: relative;
+  z-index: 75;
+}
+#frame .cr-tabsearch {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  align-self: center;
+  margin: 0 0 0 8px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--cr-icon);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#frame .cr-tabsearch:hover { background: rgba(31, 31, 31, 0.1); }
+#frame .bb-tabbar {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 41px;
+  box-sizing: border-box;
+  align-items: flex-end;
+  gap: 0;
+  padding: 7px 0 0 8px;
+  border: 0;
+  background: transparent;
+  z-index: auto;
+}
+#frame .bb-tab {
+  flex: 0 1 240px;
+  min-width: 40px;
+  max-width: 240px;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 8px 0 12px;
+  gap: 8px;
+  color: var(--cr-icon);
+  font: 12px "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: transparent;
+  border: 0 !important;
+  border-radius: 8px 8px 0 0;
+  box-shadow: none;
+}
+#frame .bb-tab:hover { background: rgba(255, 255, 255, 0.5); color: var(--cr-text); }
+#frame .bb-tab.active,
+#frame .bb-tab.active:hover {
+  background: var(--cr-bar) !important;
+  color: var(--cr-text) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+#frame .bb-tab.active::before,
+#frame .bb-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+}
+#frame .bb-tab.active::before { left: -8px; background: radial-gradient(circle at 0 0, transparent 7.5px, var(--cr-bar) 8px); }
+#frame .bb-tab.active::after { right: -8px; background: radial-gradient(circle at 100% 0, transparent 7.5px, var(--cr-bar) 8px); }
+#frame .bb-tab.sel { background: #c2d7f7; }
+#frame .bb-tab-title { color: inherit; font: inherit; }
+#frame .bb-tab-ico {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #dadce0;
+  color: #3c4043;
+  font: 700 10px/1 "Segoe UI", system-ui, sans-serif;
+}
+#frame .bb-tab-ico.blank {
+  background:
+    radial-gradient(circle, #5f6368 0 28%, #ffffff 29% 40%, transparent 41%),
+    conic-gradient(from -60deg, #80868b 0 120deg, #9aa0a6 120deg 240deg, #70757a 240deg 360deg);
+}
+#frame .bb-tab-x {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--cr-icon);
+  font-size: 14px;
+  opacity: 1;
+}
+#frame .bb-tab-x:hover { background: rgba(31, 31, 31, 0.12); opacity: 1; }
+#frame .bb-tab-new {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  margin: 0 0 3px 4px;
+  align-self: flex-end;
+  color: var(--cr-icon);
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1;
+}
+#frame .bb-tab-new:hover { background: rgba(31, 31, 31, 0.1); }
+#frame .bb-group,
+#frame .bb-selbtn { margin-bottom: 6px; }
+#frame .bb-group { border-color: #9aa0a6; background: rgba(255, 255, 255, 0.6); color: var(--cr-text); }
+#frame .bb-group:hover { background: rgba(255, 255, 255, 0.9); }
+#frame .bb-selbtn { background: #0b57d0; border-color: #0b57d0; color: #ffffff; }
+
+/* Toolbar: back, forward, reload, address bar, puzzle button */
+#frame #taskbarMain {
+  flex: 0 0 44px;
+  height: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  margin: 0;
+  padding: 0 8px 0 6px;
+  border: 0;
+  border-radius: 0;
+  background: var(--cr-bar);
+  box-shadow: none;
+  overflow: visible;
+  position: relative;
+  z-index: 70;
+}
+/* the old controls stay invisible until index.js has moved them into the puzzle panel */
+#frame #taskbarMain > .taskbar-right,
+#frame #taskbarMain .taskbar-left > #dev-bar { display: none; }
+#frame #taskbarMain .taskbar-left {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+#frame #taskbarMain .taskbar-left > .bb-navrow {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  height: 44px;
+  display: flex !important;
+  align-items: center;
+  padding: 0;
+  background: transparent;
+}
+#frame #taskbarMain .bb-navrow .bb-half { gap: 4px; }
+#frame #taskbarMain .bb-half > .bb-btn {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--cr-icon);
+  box-shadow: none;
+}
+#frame #taskbarMain .bb-half > .bb-btn:hover { background: rgba(31, 31, 31, 0.08); }
+#frame #taskbarMain .bb-half > .bb-btn svg { width: 20px; height: 20px; display: block; }
+#frame #taskbarMain .bb-omni,
+#frame #taskbarMain .bb-omni:hover {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  margin-left: 4px;
+  padding: 0 4px 0 12px;
+  gap: 8px;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: var(--cr-omni) !important;
+  box-shadow: none !important;
+}
+#frame #taskbarMain .bb-omni:hover:not(:focus-within) { background: #e1e7f1 !important; }
+#frame #taskbarMain .bb-omni:focus-within {
+  background: #ffffff !important;
+  box-shadow: 0 0 0 2px #0b57d0 !important;
+}
+#frame .cr-g { flex: 0 0 16px; width: 16px; height: 16px; display: flex; }
+#frame .cr-g svg { width: 16px; height: 16px; display: block; }
+#frame .bb-omni input {
+  color: var(--cr-text);
+  font: 14px "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+#frame .bb-omni input::placeholder { color: #5f6368; }
+#frame .bb-omni .bb-btn {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  color: var(--cr-icon);
+  font-size: 16px;
+  box-shadow: none;
+}
+#frame .bb-omni .bb-btn:hover { background: rgba(31, 31, 31, 0.08); }
+
+/* The single button that holds everything else (where Chrome's extensions button lives) */
+#frame #cxBtn {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  margin-left: 6px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--cr-icon);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#frame #cxBtn:hover { background: rgba(31, 31, 31, 0.08); }
+#frame #cxBtn.open { background: rgba(31, 31, 31, 0.14); }
+#frame #cxBtn svg { width: 20px; height: 20px; display: block; }
+#frame #cxPanel {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 8px;
+  z-index: 300;
+  width: min(600px, calc(100vw - 16px));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px;
+  background: var(--app-bg);
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+#frame #cxPanel[hidden] { display: none; }
+#cxPanel #dev-bar { display: block; flex: none; width: 100%; min-width: 0; overflow: visible; }
+#cxPanel #dev-control-bar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  gap: 0;
+    border: 1px solid #ffffff;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  #cxPanel #dev-instruction { flex: 1 1 auto; min-width: 60px; width: auto; }
+  #cxPanel .taskbar-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    align-self: flex-end;
+    gap: 0;
+    margin: 0;
+    border: 1px solid #ffffff;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  /* hide the page-tiling icon (and the empty pill around it) inside the puzzle panel */
+  #cxPanel #orientBtn,
+  #cxPanel .taskbar-right { display: none !important; }
+
+  /* Patch bar: always shown at the very bottom of the extension (outside the puzzle panel) */
+#frame > #devBottomBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 60;
+  width: auto;
+  margin: 4px 0;
+  box-sizing: border-box;
+}
+#devBottomBar #dev-bar {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+#devBottomBar #dev-control-bar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+}
+#devBottomBar #dev-instruction { flex: 1 1 auto; min-width: 60px; width: auto; }
+/* Log button is not shown in the patch bar; errors pop out instead (see devShowErr in index.js) */
+#dev-btn-log { display: none !important; }
+
+/* Bookmarks bar: empty strip under the toolbar, like a fresh Chrome */
+#frame #bmBar {
+  flex: 0 0 35px;
+  height: 35px;
+  width: auto;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 0;
+  border-bottom: 1px solid #dadce0;
+  background: var(--cr-bar);
+}
+#frame #bmBar .bb-hint { display: none; }
+#frame #bmBar .bb-mark {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 14px;
+  color: var(--cr-text);
+  font: 12px "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+#frame #bmBar .bb-mark:hover { background: rgba(31, 31, 31, 0.08); }
+#frame #bmBar .bb-mark-x { display: none; width: 16px; height: 16px; color: var(--cr-icon); }
+#frame #bmBar .bb-mark:hover .bb-mark-x { display: inline-flex; }
+
+/* Pane zoom − / + : invisible until you hover the bottom centre of a pane (mouse only) */
+@media (hover: hover) {
+  #frame .zoom-controls { opacity: 0; transition: opacity 0.15s ease; }
+  #frame .zoom-controls:hover { opacity: 1; }
+}
+
+/* Address-bar suggestions open DOWNWARD (position is set by index.js) */
+.bb-sugg {
+  padding: 8px 0;
+  background: #ffffff;
+  color: #1f1f1f;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.bb-sugg .bb-sg { height: 36px; padding: 0 16px; border-radius: 0; color: #1f1f1f; }
+.bb-sugg .bb-sg:hover,
+.bb-sugg .bb-sg.sel { background: #eaf1fb; }
+.bb-sugg .bb-sg-main { color: #1f1f1f; }
+.bb-sugg .bb-sg-sub { color: #5f6368; }
+.bb-sugg .bb-sg-ico { color: #444746; }
+
+/* Profile icon + three dots, right after the puzzle button: puzzle - profile - three dots */
+#frame .cr-profile,
+#frame .cr-menu {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  margin-left: 2px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--cr-icon);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#frame .cr-profile:hover,
+#frame .cr-menu:hover { background: rgba(31, 31, 31, 0.08); }
+#frame .cr-menu svg { width: 20px; height: 20px; display: block; }
+#frame .cr-avatar {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e8336d;
+    color: #ffffff;
+    font: 500 12px/1 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     WHOLE APP: navy var(--app-bg) background, everything else white
+     (same look as the bottom patch bar)
+     ══════════════════════════════════════════════════════════════ */
+  #frame #splitBtn {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    margin-left: 6px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #ffffff;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #frame #splitBtn:hover { background: rgba(255, 255, 255, 0.15); }
+  #frame #splitBtn svg { width: 20px; height: 20px; display: block; }
+
+  /* address-bar suggestions: Chrome dark dropdown */
+  .bb-sugg { background: var(--th-frame); color: #e3e3e3; border: 0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); }
+  .bb-sugg .bb-sg,
+  .bb-sugg .bb-sg-main { color: #e3e3e3; }
+  .bb-sugg .bb-sg:hover,
+  .bb-sugg .bb-sg.sel { background: rgba(255, 255, 255, 0.12); }
+  .bb-sugg .bb-sg-sub { color: rgba(255, 255, 255, 0.65); }
+  .bb-sugg .bb-sg-ico { color: #e3e3e3; }
+
+  /* bookmark bubble, manager, menus, dialogs (injected by index.js later, so html body wins) */
+  html body .bm-bubble,
+  html body .bm-dlg,
+  html body .bm-menu { background: var(--app-bg); color: #ffffff; border: 1px solid #ffffff; }
+  html body .bm-lbl,
+  html body .bm-item-url,
+  html body .bm-empty { color: rgba(255, 255, 255, 0.7); }
+  html body .bm-in,
+  html body .bm-sel { background: var(--app-bg); color: #ffffff; border: 1px solid #ffffff; }
+  html body .bm-in:focus,
+  html body .bm-sel:focus { outline: 2px solid #ffffff; border-color: #ffffff; }
+  html body .bm-sel option { background: var(--app-bg); color: #ffffff; }
+  html body .bm-btn { background: transparent; color: #ffffff; border: 1px solid #ffffff; }
+  html body .bm-btn:hover { background: rgba(255, 255, 255, 0.15); }
+  html body .bm-btn.primary { background: #ffffff; color: var(--app-bg); border-color: #ffffff; }
+  html body .bm-btn.primary:hover { background: rgba(255, 255, 255, 0.85); }
+  html body .bm-mgr { background: var(--app-bg); color: #ffffff; }
+  html body .bm-top { background: var(--app-bg); border-bottom: 1px solid #ffffff; }
+  html body .bm-search { background: transparent; color: #ffffff; border: 1px solid #ffffff; }
+  html body .bm-search:focus-within { background: var(--app-bg); box-shadow: none; }
+  html body .bm-search-in { color: #ffffff; }
+  html body .bm-top-btn,
+  html body .bm-item-more { color: #ffffff; }
+  html body .bm-top-btn:hover,
+  html body .bm-item-more:hover { background: rgba(255, 255, 255, 0.18); }
+  html body .bm-side-item { color: #ffffff; }
+  html body .bm-side-item:hover { background: rgba(255, 255, 255, 0.12); }
+  html body .bm-side-item.sel { background: rgba(255, 255, 255, 0.25); color: #ffffff; }
+  html body .bm-list-head { color: #ffffff; }
+  html body .bm-item:hover,
+  html body .bm-item:focus { background: rgba(255, 255, 255, 0.12); }
+  html body .bm-item-ico { background: #ffffff; color: var(--app-bg); }
+  html body .bm-menu-item { background: transparent; color: #ffffff; }
+  html body .bm-menu-item:hover { background: rgba(255, 255, 255, 0.18); }
+  html body .bm-menu-item:disabled { color: rgba(255, 255, 255, 0.4); }
+  html body .bm-menu-item:disabled:hover { background: transparent; }
+  html body .bm-menu-sep { background: rgba(255, 255, 255, 0.4); }
+  html body .bm-dlg-back { background: rgba(0, 0, 0, 0.6); }
+
+
+  /* ══ CHROME DARK LOOK: tab strip = darkest, toolbar / active tab / bookmarks / page = theme color,
+        address bar = dark pill with no border (3 tones come from the theme color) ══ */
+  #frame .cr-strip { background: var(--cr-frame); border-bottom: 0; }
+  #frame .bb-tabbar { background: transparent; }
+  #frame .cr-tabsearch { background: var(--th-omni); border: 0; border-radius: 8px; color: var(--cr-icon); }
+  #frame .cr-tabsearch:hover { background: color-mix(in srgb, var(--th-omni) 80%, #ffffff); }
+  #frame .bb-tab { border: 0 !important; border-radius: 8px 8px 0 0 !important; margin: 0; background: transparent; color: var(--cr-icon); }
+  #frame .bb-tab:hover { background: rgba(255, 255, 255, 0.1); color: var(--cr-text); }
+  #frame .bb-tab.active,
+  #frame .bb-tab.active:hover { background: var(--cr-bar) !important; color: var(--cr-text) !important; border: 0 !important; box-shadow: none !important; }
+  #frame .bb-tab.active::before,
+  #frame .bb-tab.active::after { display: block; }
+  #frame .bb-tab.sel { background: rgba(255, 255, 255, 0.25); box-shadow: none; }
+  #frame .bb-tab-ico { background: rgba(255, 255, 255, 0.85); color: #202124; }
+  #frame .bb-tab-ico.blank {
+    background:
+      radial-gradient(circle, #5f6368 0 28%, #ffffff 29% 40%, transparent 41%),
+      conic-gradient(from -60deg, #bdc1c6 0 120deg, #dadce0 120deg 240deg, #9aa0a6 240deg 360deg);
+  }
+  #frame .bb-tab-x { color: var(--cr-icon); }
+  #frame .bb-tab-x:hover { background: rgba(255, 255, 255, 0.15); }
+  #frame .bb-tab-new { color: var(--cr-icon); margin: 0 0 3px 4px; }
+  #frame .bb-tab-new:hover { background: rgba(255, 255, 255, 0.12); }
+  #frame .bb-group { border-color: rgba(255, 255, 255, 0.4); background: rgba(255, 255, 255, 0.12); color: var(--cr-text); }
+  #frame .bb-group:hover { background: rgba(255, 255, 255, 0.22); }
+  #frame .bb-selbtn { background: #a8c7fa; border-color: #a8c7fa; color: #062e6f; }
+
+  #frame #taskbarMain { background: var(--cr-bar); border: 0; }
+  #frame #taskbarMain .bb-half > .bb-btn { color: var(--cr-icon); }
+  #frame #taskbarMain .bb-half > .bb-btn:hover,
+  #frame .bb-omni .bb-btn:hover,
+  #frame #cxBtn:hover,
+  #frame #splitBtn:hover,
+  #frame #themeBtn:hover,
+  #frame .cr-profile:hover,
+  #frame .cr-menu:hover { background: rgba(255, 255, 255, 0.1); }
+  #frame #cxBtn.open,
+  #frame #themeBtn.open { background: rgba(255, 255, 255, 0.18); }
+  #frame #cxBtn,
+  #frame #splitBtn,
+  #frame #themeBtn,
+  #frame .cr-profile,
+  #frame .cr-menu,
+  #frame .bb-omni .bb-btn { color: var(--cr-icon); }
+  #frame #taskbarMain .bb-omni,
+  #frame #taskbarMain .bb-omni:hover {
+    background: var(--cr-omni) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  #frame #taskbarMain .bb-omni:hover:not(:focus-within) { background: color-mix(in srgb, var(--th-omni) 85%, #ffffff) !important; }
+  #frame #taskbarMain .bb-omni:focus-within {
+    background: var(--cr-omni) !important;
+    box-shadow: 0 0 0 2px #a8c7fa !important;
+  }
+  #frame .bb-omni input { color: var(--cr-text); }
+  #frame .bb-omni input::placeholder { color: rgba(255, 255, 255, 0.65); }
+
+  #frame #bmBar { background: var(--cr-bar); border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+  #frame #bmBar .bb-mark { color: var(--cr-text); }
+  #frame #bmBar .bb-mark:hover { background: rgba(255, 255, 255, 0.1); }
+  #frame #bmBar .bb-mark-x { color: var(--cr-icon); }
+  #frame #bmBar .bb-allmarks svg,
+  #frame #bmBar .bb-foldmark svg { color: var(--cr-icon); }
+
+  /* theme button (theme.js): one click = next theme */
+  #frame #themeBtn {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    margin-left: 6px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #ffffff;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #frame #themeBtn:hover { background: rgba(255, 255, 255, 0.15); }
+  #frame #themeBtn.open { background: rgba(255, 255, 255, 0.25); }
+  #frame #themeBtn svg { width: 20px; height: 20px; display: block; }
+  .th-toast {
+    position: fixed;
+    z-index: 2147483160;
+    padding: 6px 12px;
+    background: var(--th-frame);
+    color: #e3e3e3;
+    border-radius: 999px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+    font: 12px "Segoe UI", system-ui, -apple-system, sans-serif;
+    pointer-events: none;
+    white-space: nowrap;
+    transition: opacity 0.2s ease;
+  }
+   .th-color { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; } .sp-pop { background: var(--app-bg) !important; } .sp-seg button.on, .sp-leaf { color: var(--app-bg) !important; }
+
+    /* hide the marked items: theme (palette), extensions (puzzle), profile, menu (3 dots) */
+  #frame #themeBtn,
+  #frame #cxBtn,
+  #frame #crProfile,
+  #frame #crMenu,
+  #frame .cr-profile,
+  #frame .cr-menu { display: none !important; }
+
+  /* hide patch-bar icons: nuts, tags, scan, replace, parts map, camera, undo, redo */
+  #dev-control-bar #dev-btn-nuts,
+  #dev-control-bar #dev-btn-tags,
+  #dev-control-bar #dev-btn-scan,
+  #dev-control-bar #dev-btn-replace,
+  #dev-control-bar #dev-btn-map,
+  #dev-control-bar #dev-btn-shot,
+  #dev-control-bar #dev-btn-undo,
+  #dev-control-bar #dev-btn-redo { display: none !important; }
+
+  /* expand the url bar to use all the freed space */
+  #frame #taskbarMain .taskbar-left,
+  #frame #taskbarLeft { flex: 1 1 0% !important; min-width: 0 !important; max-width: none !important; width: auto !important; }
+  #frame #navRow,
+  #frame #navRow .bb-half { width: 100% !important; max-width: none !important; }
+  #frame #taskbarMain .bb-omni { flex: 1 1 auto !important; min-width: 0 !important; width: 100% !important; max-width: none !important; }
+  #frame #taskbarMain .bb-omni input { flex: 1 1 auto !important; min-width: 0 !important; width: 100% !important; }
+
+  /* GLASS THEME v1 */
+  :root { --glass: rgba(255,255,255,0.10); --glass-strong: rgba(255,255,255,0.18); --glass-line: rgba(255,255,255,0.28); --glass-blur: blur(18px) saturate(160%); --glass-pop: color-mix(in srgb, var(--app-bg) 55%, transparent); }
+    html, body {
+    background:
+      radial-gradient(900px 600px at 12% 8%, color-mix(in srgb, var(--app-bg) 40%, var(--th-a, #7b6cff)) 0%, transparent 65%),
+      radial-gradient(800px 600px at 90% 15%, color-mix(in srgb, var(--app-bg) 45%, var(--th-b, #00c2ff)) 0%, transparent 60%),
+      radial-gradient(900px 700px at 50% 100%, color-mix(in srgb, var(--app-bg) 50%, var(--th-c, #ff4fa3)) 0%, transparent 65%),
+      var(--app-bg) !important;
+    background-attachment: fixed !important;
+        background: var(--app-bg) !important;
+  }
+  .app, .frame, #frame, #frame .panes-wrapper { background: transparent !important; }
+  #frame .cr-strip, #frame #taskbarMain, #frame #bmBar, #devBottomBar.taskbar {
+    background: var(--glass) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    border-color: var(--glass-line) !important;
+  }
+  #frame #bmBar { border-bottom: 1px solid var(--glass-line) !important; }
+  #devBottomBar.taskbar { border: 1px solid var(--glass-line) !important; box-shadow: 0 8px 24px rgba(0,0,0,0.25) !important; }
+  #frame .bb-tab { border-radius: 10px 10px 0 0 !important; transition: background 0.15s ease; }
+  #frame .bb-tab.active, #frame .bb-tab.active:hover {
+    background: var(--glass-strong) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4) !important;
+  }
+  #frame .bb-tab.active::before, #frame .bb-tab.active::after { display: none !important; }
+  #frame #taskbarMain .bb-omni, #frame #taskbarMain .bb-omni:hover {
+    background: rgba(255,255,255,0.12) !important;
+    border: 1px solid var(--glass-line) !important;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  #frame #taskbarMain .bb-omni:focus-within {
+    background: rgba(255,255,255,0.20) !important;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.45) !important;
+  }
+  .pane-bar {
+    background: var(--glass) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    border-top: 1px solid var(--glass-line) !important;
+  }
+  .pane.focus .pane-bar { background: var(--glass-strong) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,0.7) !important; }
+  .mgr-card, .tile-menu, .sp-pop, .bb-sugg, #frame #cxPanel, #dev-err-popup,
+  html body .bm-bubble, html body .bm-dlg, html body .bm-menu, html body .bm-mgr, html body .bm-top {
+    background: var(--glass-pop) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(170%);
+    backdrop-filter: blur(22px) saturate(170%);
+    border: 1px solid var(--glass-line) !important;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.35) !important;
+  }
+  .mgr-tile { background: rgba(255,255,255,0.08) !important; border: 1px solid var(--glass-line) !important; border-radius: 14px !important; }
+  .mgr-tile:hover { background: rgba(255,255,255,0.16) !important; }
+  .mgr-tile.is-active, .mgr-tile.is-active:hover { background: rgba(255,255,255,0.28) !important; color: #ffffff !important; }
+  #dev-toast, .fs-toast, .th-toast { background: var(--glass-pop) !important; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid var(--glass-line) !important; }
+    /* CHROME DARK LOOK for the tab strip + address bar: solid greys, no tint from the app color */
+  #frame .cr-strip { background: #202124 !important; -webkit-backdrop-filter: none; backdrop-filter: none; border-color: #202124 !important; }
+  #frame #taskbarMain { background: #35363a !important; -webkit-backdrop-filter: none; backdrop-filter: none; border: 0 !important; box-shadow: none !important; }
+  #frame .bb-tab { color: #e8eaed; }
+  #frame .bb-tab:hover { background: rgba(255, 255, 255, 0.1); }
+  #frame .bb-tab.active, #frame .bb-tab.active:hover { background: #35363a !important; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none !important; color: #e8eaed !important; }
+  #frame .cr-tabsearch { background: #35363a !important; color: #9aa0a6; }
+  #frame .cr-tabsearch:hover { background: #3c4043 !important; }
+  #frame #taskbarMain .bb-omni, #frame #taskbarMain .bb-omni:hover { background: #202124 !important; border: 0 !important; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none !important; }
+  #frame #taskbarMain .bb-omni:hover:not(:focus-within) { background: #292a2d !important; }
+  #frame #taskbarMain .bb-omni:focus-within { background: #202124 !important; box-shadow: 0 0 0 2px #8ab4f8 !important; }
+  #frame #taskbarMain .bb-omni input { color: #e8eaed; }
+    #frame #taskbarMain .bb-half > .bb-btn, #frame .bb-omni .bb-btn { color: #9aa0a6; }
+  #frame #bmBar { background: #35363a !important; -webkit-backdrop-filter: none; backdrop-filter: none; border-color: #3c4043 !important; border-bottom: 1px solid #3c4043 !important; box-shadow: none !important; }
+  #frame #bmBar .bb-mark { color: #e8eaed; }
+  #frame #bmBar .bb-mark:hover { background: rgba(255, 255, 255, 0.1); }
+  #devBottomBar.taskbar { background: #202124 !important; -webkit-backdrop-filter: none; backdrop-filter: none; border: 1px solid #3c4043 !important; box-shadow: none !important; }
+  #devBottomBar .dev-input { background: #35363a; border-color: #3c4043; color: #e8eaed; }
+    #devBottomBar .dev-btn { color: #e8eaed; border-color: #3c4043; }
+    /* FLOATING APP: gap around the frame, colored backdrop, big curve on all four corners */
+  html, body {
+    background:
+            radial-gradient(900px 600px at 10% 10%, color-mix(in srgb, var(--th-a, #2f46ff) 55%, var(--app-bg)) 0%, transparent 70%),
+      radial-gradient(900px 600px at 95% 90%, color-mix(in srgb, var(--th-c, #6a35ff) 50%, var(--app-bg)) 0%, transparent 70%),
+      linear-gradient(135deg, color-mix(in srgb, var(--th-a, #2f46ff) 35%, var(--app-bg)), color-mix(in srgb, var(--th-b, #00a2ff) 30%, var(--app-bg))) !important;
+    background-attachment: fixed !important;
+  }
+        body { padding: 0 !important; }
+        html, body { background: var(--app-bg) !important; }
+    #frame {
+      border-radius: 0 !important;
+    overflow: hidden !important;
+    background: #202124 !important;
+    outline: 0 !important;
+    outline-offset: -1px;
+        box-shadow: none !important;
+  }
+    #frame > #devBottomBar { margin: 4px 14px 8px !important; }
+    #devBottomBar.taskbar { border-radius: 999px !important; }
+  /* THEME-TINTED APP: every bar uses shades of --app-bg (#000432 by default) */
+  :root {
+    --ap-strip: color-mix(in srgb, var(--app-bg) 68%, #000000);
+    --ap-bar: color-mix(in srgb, var(--app-bg) 86%, #ffffff);
+    --ap-omni: color-mix(in srgb, var(--app-bg) 55%, #000000);
+    --ap-hover: color-mix(in srgb, var(--app-bg) 70%, #ffffff);
+  }
+  #frame { background: var(--ap-strip) !important; }
+  #frame .cr-strip { background: var(--ap-strip) !important; border-color: var(--ap-strip) !important; }
+  #frame #taskbarMain { background: var(--ap-bar) !important; }
+  #frame .bb-tab.active, #frame .bb-tab.active:hover { background: var(--ap-bar) !important; }
+  #frame .bb-tab:hover { background: var(--ap-hover); }
+  #frame .cr-tabsearch { background: var(--ap-bar) !important; }
+  #frame .cr-tabsearch:hover { background: var(--ap-hover) !important; }
+  #frame #taskbarMain .bb-omni, #frame #taskbarMain .bb-omni:hover { background: var(--ap-omni) !important; }
+  #frame #taskbarMain .bb-omni:hover:not(:focus-within) { background: color-mix(in srgb, var(--ap-omni) 82%, #ffffff) !important; }
+  #frame #taskbarMain .bb-omni:focus-within { background: var(--ap-omni) !important; box-shadow: 0 0 0 2px #8ab4f8 !important; }
+  #frame #bmBar { background: var(--ap-bar) !important; border-color: var(--ap-hover) !important; border-bottom: 1px solid var(--ap-hover) !important; }
+  #devBottomBar.taskbar { background: var(--ap-strip) !important; border: 1px solid var(--ap-hover) !important; }
+  #devBottomBar .dev-input { background: var(--ap-bar) !important; border-color: var(--ap-hover) !important; }
+    #devBottomBar .dev-btn { border-color: var(--ap-hover) !important; }
+  /* MERGED BOTTOM BAR: the whole bar is the input area, no inner pill */
+  #frame > #devBottomBar { margin: 0 !important; }
+  #devBottomBar.taskbar { background: var(--ap-bar) !important; border: 0 !important; border-top: 1px solid var(--ap-hover) !important; border-radius: 0 !important; box-shadow: none !important; padding: 0 22px 4px 18px !important; }
+  #devBottomBar .dev-input { background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; outline: none !important; }
+  #devBottomBar .dev-toggles { background: transparent !important; border: 0 !important; border-radius: 0 !important; }
+  #devBottomBar .dev-btn { background: transparent !important; border: 0 !important; }
+    #devBottomBar .dev-btn:hover { background: var(--ap-hover) !important; }
+  /* hide the vertical separator lines in the bottom bar and the tab-search chevron */
+    #devBottomBar #dev-bar,
+  #devBottomBar #dev-control-bar,
+  #devBottomBar #dev-control-bar *:not(input[type="checkbox"]) { border: 0 !important; border-image: none !important; box-shadow: none !important; }
+  #devBottomBar #dev-control-bar *:not(input[type="checkbox"])::before,
+  #devBottomBar #dev-control-bar *:not(input[type="checkbox"])::after { display: none !important; }
+    #frame #crTabSearch { display: none !important; }
+  /* remove the white lines on the bookmark bar and the tab bar top */
+  #frame #bmBar { border-left: 0 !important; border-right: 0 !important; border-top: 0 !important; padding-left: 14px !important; padding-right: 14px !important; }
+  #frame .bb-tabbar { border-top: 0 !important; padding-left: 20px !important; }
+  /* merged active tab: flared base that melts into the toolbar */
+  #frame .bb-tab.active::before { content: ""; display: block !important; position: absolute; left: -8px; right: auto; top: auto; bottom: 0; width: 8px; height: 8px; border: 0; box-shadow: none; transform: none; background: radial-gradient(circle at 0 0, transparent 7.5px, var(--ap-bar) 8px) !important; }
+  #frame .bb-tab.active::after { content: ""; display: block !important; position: absolute; right: -8px; left: auto; top: auto; bottom: 0; width: 8px; height: 8px; border: 0; box-shadow: none; transform: none; background: radial-gradient(circle at 100% 0, transparent 7.5px, var(--ap-bar) 8px) !important; }
+    /* seamless tab: the tab overlaps the toolbar by 1px so there is no seam, no top line, no side lines */
+  #frame .cr-strip { flex: 0 0 42px !important; height: 42px !important; margin-bottom: -1px !important; border: 0 !important; box-shadow: none !important; }
+  #frame .bb-tabbar { height: 42px !important; padding-top: 7px !important; border: 0 !important; box-shadow: none !important; }
+  #frame .bb-tab { height: 35px !important; }
+  #frame .bb-tab.active, #frame .bb-tab.active:hover { border: 0 !important; box-shadow: none !important; background: var(--ap-bar) !important; border-radius: 0 !important; }
+    #frame #taskbarMain { border: 0 !important; box-shadow: none !important; }
+    /* top-left corner of the frame: same colour as the bottom bar corner */
+    #frame .cr-strip { background: var(--ap-bar) !important; border-color: var(--ap-bar) !important; }
+      /* tabs are half-cut pills: fully rounded top, flat bottom, same shape for normal, hover and active */
+    #frame .bb-tabbar { padding-top: 0 !important; padding-left: 0 !important; padding-right: 0 !important; }
+    #frame .bb-tab, #frame .bb-tab:hover, #frame .bb-tab.active, #frame .bb-tab.active:hover { height: 42px !important; margin: 0 1px 0 0 !important; border-radius: 0 !important; padding: 0 10px 0 22px !important; }
+      #frame .bb-tab:first-child, #frame .bb-tab:first-child:hover { border-top-left-radius: 0 !important; margin-left: 0 !important; }
+    #frame #tabBar .bb-tab { background: var(--ap-strip) !important; }
+    #frame #tabBar .bb-tab:hover { background: color-mix(in srgb, var(--ap-strip) 50%, var(--ap-bar)) !important; }
+          #frame #tabBar .bb-tab.active, #frame #tabBar .bb-tab.active:hover { background: var(--ap-hover) !important; }
+      /* bottom bar has the same thickness as the top tab strip (42px) */
+    #frame > #devBottomBar.taskbar { flex: 0 0 42px !important; height: 42px !important; min-height: 42px !important; padding: 0 22px 0 18px !important; align-items: center !important; }
+    /* bigger bottom icons: buttons, symbols, folder/refresh svg, checkboxes */
+    #devBottomBar #dev-bar, #devBottomBar #dev-control-bar { height: 40px !important; align-items: center !important; }
+    #devBottomBar .dev-btn { width: 38px !important; height: 38px !important; min-width: 38px !important; font-size: 22px !important; line-height: 1 !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; }
+    #devBottomBar .dev-btn svg { width: 22px !important; height: 22px !important; }
+    #devBottomBar .dev-toggles { gap: 4px !important; align-items: center !important; }
+    #devBottomBar .dev-toggles label { display: inline-flex !important; align-items: center !important; justify-content: center !important; width: 28px !important; height: 38px !important; }
+    #devBottomBar .dev-toggles input[type="checkbox"] { width: 22px !important; height: 22px !important; margin: 0 !important; }
+      #devBottomBar .dev-input { height: 38px !important; font-size: 15px !important; }
+    /* tick boxes: same vertical centre as the other bottom icons */
+    #devBottomBar .dev-toggles { display: flex !important; align-items: center !important; align-self: center !important; height: 38px !important; margin: 0 !important; padding: 0 !important; }
+    #devBottomBar .dev-toggles label { display: flex !important; align-items: center !important; justify-content: center !important; height: 38px !important; margin: 0 !important; padding: 0 !important; line-height: 1 !important; }
+        #devBottomBar .dev-toggles { gap: 6px !important; }
+      #devBottomBar .dev-toggles label { width: 34px !important; }
+      #devBottomBar .dev-toggles input[type="checkbox"] { -webkit-appearance: none !important; appearance: none !important; display: block !important; position: relative !important; box-sizing: border-box !important; width: 26px !important; height: 26px !important; min-width: 26px !important; margin: 0 !important; padding: 0 !important; border: 2px solid #ffffff !important; border-radius: 7px !important; background-color: transparent !important; background-repeat: no-repeat !important; background-position: center !important; background-size: 18px 18px !important; align-self: center !important; vertical-align: middle !important; cursor: pointer !important; }
+      #devBottomBar .dev-toggles input[type="checkbox"]:checked { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important; }
+        #devBottomBar .dev-toggles input[type="checkbox"]::before, #devBottomBar .dev-toggles input[type="checkbox"]::after { display: none !important; content: none !important; }
+      /* smaller, uniform bottom icons: every cell is 34px, glyphs 18px, tick boxes 20px */
+      #devBottomBar .dev-btn { width: 34px !important; height: 34px !important; min-width: 34px !important; font-size: 18px !important; line-height: 1 !important; padding: 0 !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; }
+      #devBottomBar .dev-btn svg { width: 18px !important; height: 18px !important; }
+      #devBottomBar .dev-toggles { gap: 0 !important; height: 34px !important; }
+      #devBottomBar .dev-toggles label { width: 34px !important; height: 34px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+      #devBottomBar .dev-toggles input[type="checkbox"] { width: 20px !important; height: 20px !important; min-width: 20px !important; border-width: 2px !important; border-radius: 6px !important; background-size: 14px 14px !important; }
+      #devBottomBar #dev-btn-log, #devBottomBar #dev-control-bar #dev-btn-log { display: none !important; }
+    /* log button stays hidden (must beat the .dev-btn display rule above) */
+    #devBottomBar #dev-btn-log, #devBottomBar #dev-control-bar #dev-btn-log { display: none !important; }
+  #frame .bb-tab:hover { background: var(--ap-hover) !important; }
+  #frame .bb-tab.active, #frame .bb-tab.active:hover { background: var(--ap-bar) !important; }
+  #frame .bb-tab.active::before, #frame .bb-tab.active::after { display: none !important; }
+  </style><script src="theme.js"></script>
+          </head>
+    <body>
+
+  <div class="app">
+    <div class="frame" id="frame">
+      <div class="cr-strip"><button class="cr-tabsearch" id="crTabSearch" type="button" title="Search tabs" aria-label="Search tabs"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="bb-tabbar" id="tabBar" role="tablist" aria-label="Tabs"></div></div>
+            <div class="taskbar" id="taskbarMain">
+            <div class="taskbar-left" id="taskbarLeft">
+            <div class="bb-navrow" id="navRow" style="grid-template-columns:1fr">
+              <div class="bb-half" style="flex:1 1 100%;max-width:none;width:100%">
+                                <button class="bb-btn" id="navPane" type="button" title="Target pane: Top" aria-label="Target pane" hidden style="display:none">T</button>
+                <button class="bb-btn" id="navBack" type="button" title="Back" aria-label="Back"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <button class="bb-btn" id="navFwd" type="button" title="Forward" aria-label="Forward"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg></button>
+                <button class="bb-btn" id="navReload" type="button" title="Reload" aria-label="Reload"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button>
+                <div class="bb-omni"><span class="cr-g" aria-hidden="true"><svg viewBox="0 0 48 48" width="16" height="16"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg></span>
+                  <input id="navUrl" type="text" placeholder="Search Google or type a URL" aria-label="Address bar" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false">
+                                    <button class="bb-btn" id="navStar" type="button" title="Bookmark this page" aria-label="Bookmark this page">&#9734;</button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  
+                              <div id="dev-bar">
+                      <div id="dev-control-bar">
+                        <button id="dev-btn-link" class="dev-btn" title="Project Folder" aria-label="Project Folder"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1v5.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/></svg></button>
+                        <input type="file" id="dev-folder-input" webkitdirectory directory multiple style="display:none;">
+                        <input type="text" id="dev-instruction" class="dev-input" title="AI instructions" aria-label="AI instructions">
+                        <div class="dev-toggles">
+                          <label title="Include User Instruction"><input type="checkbox" id="dev-inc-user" aria-label="User" checked></label>
+                                <label title="Include Super Prompt Format"><input type="checkbox" id="dev-inc-prompt" aria-label="Prompt" checked></label>
+                  <label title="Include File Source Codes"><input type="checkbox" id="dev-inc-source" aria-label="Source" checked></label>
+                  <label title="Lite: send only the relevant parts of big files"><input type="checkbox" id="dev-inc-lite" aria-label="Lite" checked></label>
+                </div>
+                                                                                                                    <button id="dev-btn-payload" class="dev-btn" title="Copy Prompt Payload">▲</button>
+                                                                <button id="dev-btn-paste" class="dev-btn" title="Paste & Apply Patch">⌘</button>
+                                                                <button id="dev-btn-log" class="dev-btn" title="Show Log" aria-label="Show Log"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M5 6.2l2.2 1.8L5 9.8M8.8 10h2.4"/></svg></button>
+                                                              </div>
+                                                            </div>
+                                                          </div>
+                                                                      <button class="cx-btn" id="cxBtn" type="button" title="Extensions" aria-label="Extensions" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"/></svg></button>
+      <button class="cr-profile" id="crProfile" type="button" title="Profile" aria-label="Profile"><span class="cr-avatar" aria-hidden="true">S</span></button>
+            <button class="cr-menu" id="crMenu" type="button" title="Customize and control Google Chrome" aria-label="Customize and control Google Chrome"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg></button>
+            <div class="cx-panel" id="cxPanel" hidden></div>
+      <div class="taskbar-right">
+                                                                                                                                <div class="zoom-btn orient-btn" id="orientBtn" role="button" tabindex="0" aria-haspopup="menu" aria-expanded="false" aria-label="Page tiling" title="Page tiling: layouts, add / close panes">
+                                              <svg viewBox="0 0 16 16" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M8 2.5v11M8 8h6"/></svg>
+                                            </div>
+                                            <div class="zoom-btn fs-btn" role="button" tabindex="0" aria-label="Enter fullscreen" title="Fullscreen">
+            <svg class="ico-enter" viewBox="0 0 16 16" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg>
+            <svg class="ico-exit" viewBox="0 0 16 16" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2v4H2M14 6h-4V2M10 14v-4h4M2 10h4v4"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="bb-half bb-marks" id="bmBar" aria-label="Bookmarks"></div>
+      <div class="panes-wrapper" id="panesWrapper"></div>
+    </div>
+  </div>
+
+  <div id="dev-toast"></div>
+
+  <div class="mgr" id="mgr" hidden>
+        <div class="mgr-card" role="dialog" aria-modal="true" aria-labelledby="mgrTitle">
+      <div class="mgr-head" hidden>
+        <span id="mgrTitle">Apps</span>
+      </div>
+      <div class="mgr-body" id="mgrBody">
+        <ul class="mgr-grid" id="mgrGrid"></ul>
+        <p class="mgr-hint" id="mgrHint" hidden>Drag &#8801; to reorder &middot; tap an app to edit it</p>
+                                <ul class="mgr-list" id="mgrList" hidden></ul>
+                </div>
+                <div class="mgr-add" id="mgrAdd" hidden>
+                  <input class="mgr-in" id="mgrName" type="text" maxlength="40" aria-label="New app name" hidden>
+                  <input class="mgr-in" id="mgrUrl" type="text" placeholder="Address (e.g. aggr.trade)" aria-label="New app address" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false">
+                  <div class="mgr-add-btns">
+                    <button class="mgr-btn" id="mgrAddCancel" type="button">Cancel</button>
+                <button class="mgr-btn primary" id="mgrAddBtn" type="button">Add</button>
+              </div>
+            </div>
+                        <span class="mgr-msg" id="mgrMsg"></span>
+                            <div class="mgr-panel" id="mgrPanel" hidden>
+                  <div class="mgr-gridbar" id="mgrGridBar" hidden>
+                    <span class="mgr-step mgr-step-cols">
+                      <button class="mgr-step-btn" id="mgrColsMinus" type="button" aria-label="Remove a column">&minus;</button>
+                      <button class="mgr-step-val" id="mgrColsVal" type="button" hidden>auto</button>
+                      <button class="mgr-step-btn" id="mgrColsPlus" type="button" aria-label="Add a column">+</button>
+                    </span>
+                    <span class="mgr-step mgr-step-rows">
+                      <button class="mgr-step-btn" id="mgrRowsMinus" type="button" aria-label="Remove a row">&minus;</button>
+                      <button class="mgr-step-val" id="mgrRowsVal" type="button" hidden>auto</button>
+                      <button class="mgr-step-btn" id="mgrRowsPlus" type="button" aria-label="Add a row">+</button>
+                    </span>
+                  </div>
+                  <button class="mgr-btn" id="mgrMode" type="button" hidden>Edit apps</button>
+                  <span class="mgr-foot-info" hidden><span id="mgrSync"></span></span>
+                </div>
+                <button class="mgr-fab" id="mgrFab" type="button" aria-label="Settings" title="Settings">&#9881;&#xFE0E;</button>
+              </div>
+            </div>
+
+<script src="firebase-config.js"></script>
+<script src="sync.js"></script>
+<script src="cloud-sync.js"></script>
+<script src="index.js"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+{
+  "manifest_version": 3,
+  "name": "EXT OS",
+  "version": "1.9.8",
+  "description": "Split-pane view with two editable site lists. Long-press a pane to pick a site from a grid; Settings lets you add, rename, delete and reorder sites. Zoom, split position, site lists and last-opened sites sync via Firebase.",
+  "permissions": [
+        "declarativeNetRequest"
+    ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+                "https://olymptrade.com/*",
+          "https://*.olymptrade.com/*",
+          "https://po.trade/*",
+          "https://*.po.trade/*",
+          "https://pocketoption.com/*",
+          "https://*.pocketoption.com/*",
+          "https://qxbroker.com/*",
+          "https://*.qxbroker.com/*",
+          "https://quotex.io/*",
+          "https://*.quotex.io/*",
+          "https://market-qx.pro/*",
+          "https://*.market-qx.pro/*"
+        ],
+        "js": [
+          "content-pair-sync.js"
+        ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*/*",
+        "http://*/*"
+      ],
+      "js": [
+        "content-swipe.js"
+      ],
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "content-ai.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Open Split View"
+  }
+}
