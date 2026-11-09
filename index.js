@@ -1797,6 +1797,10 @@ Part tags: sections are cut at comment lines made of box-drawing characters arou
       const navReload = $('navReload');
       const navStar = $('navStar');
       const navDownloads = $('navDownloads');
+            var dlOmni = navDownloads ? navDownloads.parentNode : null;
+            if (dlOmni && dlOmni.classList && dlOmni.classList.contains('bb-omni') && dlOmni.parentNode) {
+              dlOmni.parentNode.insertBefore(navDownloads, dlOmni.nextSibling);
+            }
       const bmBar = $('bmBar');
       if (!tabBar || !navUrl || !bmBar || !navPane || !navReload || !navStar) return;
 
